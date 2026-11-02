@@ -14,7 +14,7 @@ waardes (`HybridDecrypt`) als complete manifesten (`SealedSecret.Unseal`, het pa
   in `spec.encryptedData` of in je Helm-values.
 - **Volledig SealedSecret**: meerdere keys in één keer, met een kant-en-klaar manifest om te kopiëren of
   te downloaden.
-- **Scopes**: namespace-wide (standaard, instelbaar), strict (namespace + naam) en cluster-wide.
+- **Scopes**: cluster-wide (standaard, instelbaar), namespace-wide en strict (namespace + naam).
 - **Clusters uit config**, plus de optie om ad hoc een eigen certificaat te plakken.
 - Controle op namespace-, naam- en key-formaat. Waarschuwt bij een afsluitende spatie of lege regel, een
   klassieke bron van "werkt niet in productie".
@@ -27,7 +27,7 @@ De app leest bij het opstarten `config/clusters.json`:
 
 ```json
 {
-  "defaultScope": "namespace-wide",
+  "defaultScope": "cluster-wide",
   "clusters": [
     {
       "id": "ont",

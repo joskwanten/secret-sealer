@@ -1,5 +1,5 @@
 {
-  "defaultScope": "namespace-wide",
+  "defaultScope": "cluster-wide",
   "clusters": [
     {
       "id": "demo",
