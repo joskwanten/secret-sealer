@@ -351,6 +351,21 @@ textarea {
   }
 }
 
+.cert-server {
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+
+  strong {
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+  }
+
+  & + .cert-info {
+    margin-top: 2px;
+  }
+}
+
 .cert-info {
   margin: 10px 0 0;
   font-size: 0.86rem;

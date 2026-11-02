@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { SealingCertificate, loadCertificate } from '../sealing/certificate';
@@ -21,7 +21,7 @@ export interface ClusterDefinition {
 
 export type CertificateState =
   | { status: 'loading' }
-  | { status: 'ready'; certificate: SealingCertificate }
+  | { status: 'ready'; certificate: SealingCertificate; server: string | null }
   | { status: 'error'; message: string };
 
 export interface Cluster extends ClusterDefinition {
@@ -43,6 +43,29 @@ export class ClusterConfigService {
     void this.load();
   }
 
+  /** Fetches a cluster's certificate again, e.g. after logging in to another cluster. */
+  async reload(id: string): Promise<void> {
+    const cluster = this.clusters().find((c) => c.id === id);
+    if (!cluster) return;
+
+    this.setCertificate(id, { status: 'loading' });
+    let state: CertificateState;
+    try {
+      const response = await firstValueFrom(
+        this.http.get(cluster.certificateUrl, { responseType: 'text', observe: 'response' }),
+      );
+      state = {
+        status: 'ready',
+        certificate: await loadCertificate(response.body ?? ''),
+        // Set by the dev server proxy, which knows which cluster it fetched from.
+        server: response.headers.get('X-Cluster-Server'),
+      };
+    } catch (e) {
+      state = { status: 'error', message: errorMessage(e) };
+    }
+    this.setCertificate(id, state);
+  }
+
   private async load(): Promise<void> {
     let config: SealerConfig;
     try {
@@ -61,24 +84,20 @@ export class ClusterConfigService {
     );
     this.loading.set(false);
 
-    await Promise.all(this.clusters().map((c) => this.loadClusterCertificate(c.id)));
+    await Promise.all(this.clusters().map((c) => this.reload(c.id)));
   }
 
-  private async loadClusterCertificate(id: string): Promise<void> {
-    const cluster = this.clusters().find((c) => c.id === id)!;
-    let state: CertificateState;
-    try {
-      const pem = await firstValueFrom(
-        this.http.get(cluster.certificateUrl, { responseType: 'text' }),
-      );
-      state = { status: 'ready', certificate: await loadCertificate(pem) };
-    } catch (e) {
-      // HttpErrorResponse is not an Error; parse failures are.
-      state = {
-        status: 'error',
-        message: e instanceof Error ? e.message : 'Certificaat niet bereikbaar',
-      };
-    }
+  private setCertificate(id: string, state: CertificateState): void {
     this.clusters.update((all) => all.map((c) => (c.id === id ? { ...c, certificate: state } : c)));
   }
+}
+
+function errorMessage(e: unknown): string {
+  if (e instanceof HttpErrorResponse) {
+    // A short plain-text body (like the dev proxy's kubeseal error) says more than the status.
+    return typeof e.error === 'string' && e.error.length < 500 && !e.error.includes('<')
+      ? e.error
+      : 'Certificaat niet bereikbaar';
+  }
+  return e instanceof Error ? e.message : 'Certificaat niet bereikbaar';
 }

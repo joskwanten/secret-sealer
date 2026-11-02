@@ -1,0 +1,15 @@
+{
+  "defaultScope": "cluster-wide",
+  "clusters": [
+    {
+      "id": "oc-login",
+      "name": "Huidige oc-login",
+      "certificateUrl": "live-certs/current"
+    },
+    {
+      "id": "demo",
+      "name": "Demo (testcertificaat)",
+      "certificateUrl": "config/certs/demo.cert"
+    }
+  ]
+}

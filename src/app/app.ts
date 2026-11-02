@@ -105,6 +105,7 @@ export class App {
       expired: notAfter.getTime() < Date.now(),
       shortFingerprint: fingerprint.split(':').slice(0, 6).join(':') + '…',
       fingerprint,
+      server: state.server,
     };
   });
 
@@ -209,7 +210,7 @@ export class App {
     try {
       const certificate = await loadCertificate(pem);
       if (this.customPem() === pem) {
-        this.customCertificate.set({ status: 'ready', certificate });
+        this.customCertificate.set({ status: 'ready', certificate, server: null });
       }
     } catch (e) {
       if (this.customPem() === pem) {
@@ -219,6 +220,10 @@ export class App {
         });
       }
     }
+  }
+
+  protected reloadCertificate(): void {
+    void this.config.reload(this.selectedClusterId());
   }
 
   protected addEntry(): void {

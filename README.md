@@ -77,6 +77,22 @@ npm test           # unit tests (Vitest)
 
 De crypto staat in `src/app/sealing/` en heeft geen dependencies; WebCrypto doet het werk.
 
+### Certificaat automatisch ophalen (lokaal)
+
+Met `npm start` haalt de devserver het cert live op via `kubeseal --fetch-cert`, met jouw eigen
+`oc login`. Je hebt dan geen cert-bestanden nodig. Kies in de app **Huidige oc-login**. De app laat zien
+van welk API-adres het cert komt. Log je in op een ander cluster, klik dan op *vernieuwen*.
+
+Voorwaarden: `kubeseal` staat in je PATH (`scoop install kubeseal`) en je bent ingelogd met `oc login`.
+`oc` is optioneel en wordt alleen gebruikt om het API-adres te tonen.
+
+- De controller staat standaard op `cd-sealed-secrets/sealed-secrets`. Overschrijf dat met de
+  omgevingsvariabelen `SEALED_SECRETS_NAMESPACE` en `SEALED_SECRETS_NAME`.
+- De lokale clusterlijst staat in `dev-config/clusters.json`; de productieconfig in `public/config` wordt
+  dan niet gebruikt. Een vaste kubeconfig-context voeg je toe met `"certificateUrl": "live-certs/<context>"`
+  (URL-encoded; contextnamen vind je met `oc config get-contexts`).
+- Dit zit in `proxy.conf.mjs` en werkt alleen met de devserver, niet in de nginx-image.
+
 ## Deployen op OpenShift
 
 De `Dockerfile` bouwt de app en serveert die met `nginx-unprivileged` op poort 8080 (draait onder een
