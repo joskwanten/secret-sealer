@@ -1,5 +1,6 @@
 import { Component, computed, effect, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Combobox } from './combobox/combobox';
 import { CertificateState, ClusterConfigService } from './config/cluster-config.service';
 import { loadCertificate } from './sealing/certificate';
 import { buildSealedSecretManifest } from './sealing/manifest';
@@ -15,7 +16,6 @@ interface Entry {
 }
 
 const CUSTOM_CLUSTER = '__custom__';
-const OTHER_NAMESPACE = '__other__';
 const STORAGE_KEY = 'secret-sealer.preferences';
 
 interface Preferences {
@@ -43,7 +43,7 @@ const dateFormat = new Intl.DateTimeFormat('nl-NL', { dateStyle: 'medium' });
 
 @Component({
   selector: 'app-root',
-  imports: [FormsModule],
+  imports: [FormsModule, Combobox],
   templateUrl: './app.html',
   host: {
     '(keydown.control.enter)': 'seal()',
@@ -55,7 +55,6 @@ export class App {
   private readonly preferences = readPreferences();
 
   protected readonly CUSTOM_CLUSTER = CUSTOM_CLUSTER;
-  protected readonly OTHER_NAMESPACE = OTHER_NAMESPACE;
   protected readonly scopes = SCOPES.map((id) => ({ id, ...SCOPE_INFO[id] }));
   protected readonly clusters = this.config.clusters;
   protected readonly configLoading = this.config.loading;
@@ -129,19 +128,6 @@ export class App {
     const list = this.namespaceList();
     return list?.status === 'ready' && list.names.length > 0 ? list.names : null;
   });
-
-  /** Set when the user picked "Andere namespace…" to type one that isn't listed. */
-  private readonly typingOtherNamespace = signal(false);
-
-  protected readonly namespaceSelectValue = computed(() => {
-    const namespace = this.namespace().trim();
-    if (this.namespaceOptions()?.includes(namespace)) return namespace;
-    return this.typingOtherNamespace() || namespace ? OTHER_NAMESPACE : '';
-  });
-
-  protected readonly showNamespaceInput = computed(
-    () => !this.namespaceOptions() || this.namespaceSelectValue() === OTHER_NAMESPACE,
-  );
 
   protected readonly needsName = computed(
     () => this.mode() === 'manifest' || this.scope() === 'strict',
@@ -253,15 +239,6 @@ export class App {
     void this.config.reload(this.selectedClusterId());
   }
 
-  protected selectNamespace(value: string): void {
-    const other = value === OTHER_NAMESPACE;
-    this.typingOtherNamespace.set(other);
-    if (!other) {
-      this.namespace.set(value);
-    } else if (this.namespaceOptions()?.includes(this.namespace().trim())) {
-      this.namespace.set('');
-    }
-  }
 
   protected addEntry(): void {
     this.entries.update((entries) => [...entries, { id: this.nextEntryId++, key: '', value: '' }]);

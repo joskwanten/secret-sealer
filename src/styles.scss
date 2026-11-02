@@ -216,7 +216,6 @@ legend,
 }
 
 input[type='text'],
-select,
 textarea {
   width: 100%;
   font: inherit;
@@ -251,21 +250,88 @@ textarea {
   resize: vertical;
 }
 
-select {
-  appearance: none;
-  padding-right: 34px;
-  cursor: pointer;
-  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
-    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) 55%,
-    calc(100% - 13px) 55%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
+// --- Combobox ---------------------------------------------------------------
+
+.combobox {
+  position: relative;
+
+  input[type='text'] {
+    padding-right: 38px;
+  }
 }
 
-select + input[type='text'] {
-  margin-top: 6px;
+.combobox-toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 36px;
+  border: 0;
+  border-radius: 0 7px 7px 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+
+  svg {
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.15s;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+.combobox.open .combobox-toggle svg {
+  transform: rotate(180deg);
+}
+
+.combobox-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(16 24 40 / 14%);
+
+  li {
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+
+    &.active {
+      background: var(--accent-soft);
+    }
+
+    &[aria-selected='true'] {
+      color: var(--accent);
+      font-weight: 600;
+    }
+  }
+
+  .combobox-empty {
+    cursor: default;
+    color: var(--text-muted);
+    font-size: 0.86rem;
+  }
 }
 
 .mono {

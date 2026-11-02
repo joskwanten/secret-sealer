@@ -99,43 +99,20 @@
 
     <div class="row">
       <div class="field">
-        <label class="label" [attr.for]="namespaceOptions() ? 'namespace-select' : 'namespace-input'">
+        <label class="label" for="namespace-input">
           Namespace
           @if (!needsNamespace()) {
             <span class="optional">niet nodig bij cluster-breed</span>
           }
         </label>
-        @if (namespaceOptions(); as options) {
-          <select
-            id="namespace-select"
-            [disabled]="!needsNamespace()"
-            [ngModel]="namespaceSelectValue()"
-            (ngModelChange)="selectNamespace($event)"
-          >
-            <option value="" disabled>Kies een namespace…</option>
-            @for (ns of options; track ns) {
-              <option [value]="ns">{{ ns }}</option>
-            }
-            <option [value]="OTHER_NAMESPACE">Andere namespace…</option>
-          </select>
-        } @else if (namespaceList()?.status === 'loading') {
-          <select disabled>
-            <option>Namespaces ophalen…</option>
-          </select>
-        }
-        @if (showNamespaceInput() && namespaceList()?.status !== 'loading') {
-          <input
-            id="namespace-input"
-            type="text"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="bijv. team-a-ont"
-            [attr.aria-label]="namespaceOptions() ? 'Andere namespace' : null"
-            [disabled]="!needsNamespace()"
-            [ngModel]="namespace()"
-            (ngModelChange)="namespace.set($event)"
-          />
-        }
+        <app-combobox
+          inputId="namespace-input"
+          [(value)]="namespace"
+          [options]="namespaceOptions() ?? []"
+          [loading]="namespaceList()?.status === 'loading'"
+          [disabled]="!needsNamespace()"
+          [placeholder]="namespaceOptions() ? 'Kies of typ een namespace' : 'bijv. team-a-ont'"
+        />
         @if (namespaceList(); as list) {
           @if (list.status === 'error') {
             <span class="help warn-inline">

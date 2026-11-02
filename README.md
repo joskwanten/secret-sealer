@@ -43,7 +43,7 @@ De app leest bij het opstarten `config/clusters.json`:
 | --- | --- |
 | `defaultScope` | `namespace-wide`, `strict` of `cluster-wide`. Wat er standaard geselecteerd is. |
 | `clusters[].certificateUrl` | Public sealing-cert (PEM), op dezelfde origin als de app. |
-| `clusters[].namespaces` | Optioneel: vaste lijst namespaces voor de dropdown. |
+| `clusters[].namespaces` | Optioneel: vaste lijst namespaces om uit te kiezen. |
 | `clusters[].namespacesUrl` | Optioneel: URL die een JSON-lijst namespaces teruggeeft; gaat voor `namespaces`. |
 
 Een cert ophaal je met:
@@ -84,9 +84,10 @@ Met `npm start` haalt de devserver het cert live op via `kubeseal --fetch-cert`,
 `oc login`. Je hebt dan geen cert-bestanden nodig. Kies in de app **Huidige oc-login**. De app laat zien
 van welk API-adres het cert komt. Log je in op een ander cluster, klik dan op *vernieuwen*.
 
-De namespaces in de dropdown komen live uit `oc get projects`, dus precies de projecten waar jij bij kunt
-(daar zijn geen clusterrechten voor nodig). Staat de namespace er niet bij, kies dan *Andere namespace…*
-en typ hem in. Lukt het ophalen niet, dan valt de app terug op een tekstveld.
+Het namespace-veld is een combobox: kies uit de lijst of typ om te filteren. De lijst komt live uit
+`oc get projects`, dus precies de projecten waar jij bij kunt (daar zijn geen clusterrechten voor nodig).
+Een namespace die er niet bij staat typ je gewoon in. Lukt het ophalen niet, dan blijft het een gewoon
+tekstveld.
 
 Voorwaarden: `kubeseal` staat in je PATH (`scoop install kubeseal`) en je bent ingelogd met `oc login`.
 `oc` is optioneel en wordt gebruikt voor de namespaces en om het API-adres te tonen (met `kubectl` als
