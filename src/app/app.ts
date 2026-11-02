@@ -15,6 +15,7 @@ interface Entry {
 }
 
 const CUSTOM_CLUSTER = '__custom__';
+const OTHER_NAMESPACE = '__other__';
 const STORAGE_KEY = 'secret-sealer.preferences';
 
 interface Preferences {
@@ -54,6 +55,7 @@ export class App {
   private readonly preferences = readPreferences();
 
   protected readonly CUSTOM_CLUSTER = CUSTOM_CLUSTER;
+  protected readonly OTHER_NAMESPACE = OTHER_NAMESPACE;
   protected readonly scopes = SCOPES.map((id) => ({ id, ...SCOPE_INFO[id] }));
   protected readonly clusters = this.config.clusters;
   protected readonly configLoading = this.config.loading;
@@ -114,7 +116,32 @@ export class App {
     return state?.status === 'error' ? state.message : null;
   });
 
-  protected readonly namespaceSuggestions = computed(() => this.selectedCluster()?.namespaces ?? []);
+  /** Live list from the cluster when configured, otherwise the fixed list from the config. */
+  protected readonly namespaceList = computed(() => {
+    const cluster = this.selectedCluster();
+    if (cluster?.namespaceList) return cluster.namespaceList;
+    return cluster?.namespaces?.length
+      ? ({ status: 'ready', names: cluster.namespaces } as const)
+      : null;
+  });
+
+  protected readonly namespaceOptions = computed(() => {
+    const list = this.namespaceList();
+    return list?.status === 'ready' && list.names.length > 0 ? list.names : null;
+  });
+
+  /** Set when the user picked "Andere namespace…" to type one that isn't listed. */
+  private readonly typingOtherNamespace = signal(false);
+
+  protected readonly namespaceSelectValue = computed(() => {
+    const namespace = this.namespace().trim();
+    if (this.namespaceOptions()?.includes(namespace)) return namespace;
+    return this.typingOtherNamespace() || namespace ? OTHER_NAMESPACE : '';
+  });
+
+  protected readonly showNamespaceInput = computed(
+    () => !this.namespaceOptions() || this.namespaceSelectValue() === OTHER_NAMESPACE,
+  );
 
   protected readonly needsName = computed(
     () => this.mode() === 'manifest' || this.scope() === 'strict',
@@ -222,8 +249,18 @@ export class App {
     }
   }
 
-  protected reloadCertificate(): void {
+  protected reloadCluster(): void {
     void this.config.reload(this.selectedClusterId());
+  }
+
+  protected selectNamespace(value: string): void {
+    const other = value === OTHER_NAMESPACE;
+    this.typingOtherNamespace.set(other);
+    if (!other) {
+      this.namespace.set(value);
+    } else if (this.namespaceOptions()?.includes(this.namespace().trim())) {
+      this.namespace.set('');
+    }
   }
 
   protected addEntry(): void {

@@ -86,41 +86,64 @@
           }
           · <span [title]="cert.fingerprint">SHA-256 {{ cert.shortFingerprint }}</span>
           @if (selectedClusterId() !== CUSTOM_CLUSTER) {
-            · <button type="button" class="link" (click)="reloadCertificate()">vernieuwen</button>
+            · <button type="button" class="link" (click)="reloadCluster()">vernieuwen</button>
           }
         </p>
       } @else if (certificateError(); as error) {
         <p class="notice notice-error" role="alert">
           {{ error }}
-          <button type="button" class="link" (click)="reloadCertificate()">Opnieuw proberen</button>
+          <button type="button" class="link" (click)="reloadCluster()">Opnieuw proberen</button>
         </p>
       }
     </fieldset>
 
     <div class="row">
-      <label class="field">
-        <span class="label">
+      <div class="field">
+        <label class="label" [attr.for]="namespaceOptions() ? 'namespace-select' : 'namespace-input'">
           Namespace
           @if (!needsNamespace()) {
             <span class="optional">niet nodig bij cluster-breed</span>
           }
-        </span>
-        <input
-          type="text"
-          list="namespace-suggestions"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="bijv. team-a-ont"
-          [disabled]="!needsNamespace()"
-          [ngModel]="namespace()"
-          (ngModelChange)="namespace.set($event)"
-        />
-        <datalist id="namespace-suggestions">
-          @for (ns of namespaceSuggestions(); track ns) {
-            <option [value]="ns"></option>
+        </label>
+        @if (namespaceOptions(); as options) {
+          <select
+            id="namespace-select"
+            [disabled]="!needsNamespace()"
+            [ngModel]="namespaceSelectValue()"
+            (ngModelChange)="selectNamespace($event)"
+          >
+            <option value="" disabled>Kies een namespace…</option>
+            @for (ns of options; track ns) {
+              <option [value]="ns">{{ ns }}</option>
+            }
+            <option [value]="OTHER_NAMESPACE">Andere namespace…</option>
+          </select>
+        } @else if (namespaceList()?.status === 'loading') {
+          <select disabled>
+            <option>Namespaces ophalen…</option>
+          </select>
+        }
+        @if (showNamespaceInput() && namespaceList()?.status !== 'loading') {
+          <input
+            id="namespace-input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="bijv. team-a-ont"
+            [attr.aria-label]="namespaceOptions() ? 'Andere namespace' : null"
+            [disabled]="!needsNamespace()"
+            [ngModel]="namespace()"
+            (ngModelChange)="namespace.set($event)"
+          />
+        }
+        @if (namespaceList(); as list) {
+          @if (list.status === 'error') {
+            <span class="help warn-inline">
+              Namespaces niet opgehaald. {{ list.message }} Typ de namespace zelf in.
+            </span>
           }
-        </datalist>
-      </label>
+        }
+      </div>
 
       @if (needsName()) {
         <label class="field">

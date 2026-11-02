@@ -4,12 +4,14 @@
     {
       "id": "oc-login",
       "name": "Huidige oc-login",
-      "certificateUrl": "live-certs/current"
+      "certificateUrl": "live-certs/current",
+      "namespacesUrl": "live-namespaces/current"
     },
     {
       "id": "demo",
       "name": "Demo (testcertificaat)",
-      "certificateUrl": "config/certs/demo.cert"
+      "certificateUrl": "config/certs/demo.cert",
+      "namespaces": ["team-a-ont", "team-a-tst", "team-b-ont"]
     }
   ]
 }
