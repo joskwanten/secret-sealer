@@ -1,0 +1,11 @@
+{
+  "defaultScope": "namespace-wide",
+  "clusters": [
+    {
+      "id": "demo",
+      "name": "Demo (testcertificaat)",
+      "certificateUrl": "config/certs/demo.cert",
+      "namespaces": ["team-a-ont", "team-a-tst", "team-b-ont"]
+    }
+  ]
+}

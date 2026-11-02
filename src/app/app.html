@@ -1,0 +1,293 @@
+<header class="topbar">
+  <div class="topbar-inner">
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="10" width="16" height="11" rx="2.5" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+      <circle cx="12" cy="15.5" r="1.6" />
+    </svg>
+    <div>
+      <h1>Secret Sealer</h1>
+      <p>Versleutel secrets voor Sealed Secrets. Alles gebeurt in je browser; je geheim verlaat je computer niet.</p>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- 1. Bestemming -->
+  <section class="card" aria-labelledby="target-title">
+    <h2 id="target-title"><span class="step">1</span> Waar gaat het secret naartoe?</h2>
+
+    @if (configError(); as error) {
+      <p class="notice notice-error" role="alert">{{ error }} Je kunt hieronder wel een eigen certificaat plakken.</p>
+    }
+
+    <fieldset class="field">
+      <legend>Cluster</legend>
+      <div class="cluster-grid">
+        @for (cluster of clusters(); track cluster.id) {
+          <label class="choice" [class.selected]="selectedClusterId() === cluster.id">
+            <input
+              type="radio"
+              name="cluster"
+              [value]="cluster.id"
+              [checked]="selectedClusterId() === cluster.id"
+              (change)="clusterId.set(cluster.id)"
+            />
+            <span class="choice-title">{{ cluster.name }}</span>
+            <span class="choice-meta">
+              @switch (cluster.certificate.status) {
+                @case ('loading') { Certificaat laden… }
+                @case ('ready') { <span class="dot ok"></span> Klaar voor gebruik }
+                @case ('error') { <span class="dot error"></span> Certificaat niet beschikbaar }
+              }
+            </span>
+          </label>
+        }
+        @if (configLoading()) {
+          <div class="choice placeholder">Clusters laden…</div>
+        }
+        <label class="choice" [class.selected]="selectedClusterId() === CUSTOM_CLUSTER">
+          <input
+            type="radio"
+            name="cluster"
+            [value]="CUSTOM_CLUSTER"
+            [checked]="selectedClusterId() === CUSTOM_CLUSTER"
+            (change)="clusterId.set(CUSTOM_CLUSTER)"
+          />
+          <span class="choice-title">Eigen certificaat</span>
+          <span class="choice-meta">Plak een public cert</span>
+        </label>
+      </div>
+
+      @if (selectedClusterId() === CUSTOM_CLUSTER) {
+        <label class="sub-field">
+          <span class="label">Public certificaat (PEM)</span>
+          <textarea
+            class="mono"
+            rows="5"
+            spellcheck="false"
+            placeholder="-----BEGIN CERTIFICATE-----&#10;…&#10;-----END CERTIFICATE-----"
+            [ngModel]="customPem()"
+            (ngModelChange)="onCustomPemChange($event)"
+          ></textarea>
+          <span class="help">Op te halen met <code>kubeseal --fetch-cert</code>.</span>
+        </label>
+      }
+
+      @if (certificateSummary(); as cert) {
+        <p class="cert-info" [class.warn]="cert.expired">
+          @if (cert.expired) {
+            Dit certificaat is verlopen op {{ cert.validUntil }}. Controleer of het nog actueel is.
+          } @else {
+            Certificaat geldig tot {{ cert.validUntil }}
+          }
+          · <span [title]="cert.fingerprint">SHA-256 {{ cert.shortFingerprint }}</span>
+        </p>
+      } @else if (certificateError(); as error) {
+        <p class="notice notice-error" role="alert">{{ error }}</p>
+      }
+    </fieldset>
+
+    <div class="row">
+      <label class="field">
+        <span class="label">
+          Namespace
+          @if (!needsNamespace()) {
+            <span class="optional">niet nodig bij cluster-breed</span>
+          }
+        </span>
+        <input
+          type="text"
+          list="namespace-suggestions"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="bijv. team-a-ont"
+          [disabled]="!needsNamespace()"
+          [ngModel]="namespace()"
+          (ngModelChange)="namespace.set($event)"
+        />
+        <datalist id="namespace-suggestions">
+          @for (ns of namespaceSuggestions(); track ns) {
+            <option [value]="ns"></option>
+          }
+        </datalist>
+      </label>
+
+      @if (needsName()) {
+        <label class="field">
+          <span class="label">Naam van het Secret</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="bijv. database-credentials"
+            [ngModel]="secretName()"
+            (ngModelChange)="secretName.set($event)"
+          />
+        </label>
+      }
+    </div>
+
+    <fieldset class="field">
+      <legend>Scope</legend>
+      <div class="scope-grid">
+        @for (s of scopes; track s.id) {
+          <label class="choice" [class.selected]="scope() === s.id">
+            <input
+              type="radio"
+              name="scope"
+              [value]="s.id"
+              [checked]="scope() === s.id"
+              (change)="scope.set(s.id)"
+            />
+            <span class="choice-title">{{ s.title }}</span>
+            <span class="choice-meta">{{ s.description }}</span>
+          </label>
+        }
+      </div>
+    </fieldset>
+  </section>
+
+  <!-- 2. Invoer -->
+  <section class="card" aria-labelledby="input-title">
+    <div class="card-head">
+      <h2 id="input-title"><span class="step">2</span> Wat wil je versleutelen?</h2>
+      <div class="tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="mode() === 'value'"
+          (click)="mode.set('value')"
+        >
+          Losse waarde
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="mode() === 'manifest'"
+          (click)="mode.set('manifest')"
+        >
+          Volledig SealedSecret
+        </button>
+      </div>
+    </div>
+
+    @if (mode() === 'value') {
+      <label class="field">
+        <span class="label">Waarde <span class="optional">meerdere regels mag</span></span>
+        <textarea
+          class="mono secret-input"
+          rows="8"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="Plak hier het wachtwoord, token, certificaat…"
+          [ngModel]="value()"
+          (ngModelChange)="value.set($event)"
+        ></textarea>
+      </label>
+      @if (valueHints(); as hints) {
+        <p class="hints">
+          {{ hints.length }} tekens · {{ hints.lines }} {{ hints.lines === 1 ? 'regel' : 'regels' }}
+          @if (hints.trailingWhitespace) {
+            <span class="warn-inline">
+              · eindigt op een spatie of lege regel
+              <button type="button" class="link" (click)="trimValue()">weghalen</button>
+            </span>
+          }
+        </p>
+      }
+    } @else {
+      <div class="entries">
+        @for (entry of entries(); track entry.id; let i = $index) {
+          <div class="entry">
+            <label class="field entry-key">
+              <span class="label">Key</span>
+              <input
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="bijv. PASSWORD"
+                [ngModel]="entry.key"
+                (ngModelChange)="updateEntry(entry.id, { key: $event })"
+              />
+            </label>
+            <label class="field entry-value">
+              <span class="label">Waarde</span>
+              <textarea
+                class="mono secret-input"
+                rows="2"
+                spellcheck="false"
+                autocomplete="off"
+                [ngModel]="entry.value"
+                (ngModelChange)="updateEntry(entry.id, { value: $event })"
+              ></textarea>
+            </label>
+            <button
+              type="button"
+              class="icon-button"
+              [disabled]="entries().length === 1"
+              (click)="removeEntry(entry.id)"
+              [attr.aria-label]="'Verwijder regel ' + (i + 1)"
+              title="Verwijder"
+            >
+              ×
+            </button>
+          </div>
+        }
+        <button type="button" class="secondary" (click)="addEntry()">+ Key toevoegen</button>
+      </div>
+    }
+
+    <div class="actions">
+      <button type="button" class="primary" [disabled]="problems().length > 0 || busy()" (click)="seal()">
+        {{ busy() ? 'Versleutelen…' : 'Versleutelen' }}
+      </button>
+      <span class="shortcut">of <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd></span>
+      <button type="button" class="link clear" (click)="clearInput()">Invoer wissen</button>
+    </div>
+
+    @if (problems().length > 0) {
+      <ul class="problems">
+        @for (problem of problems(); track problem) {
+          <li>{{ problem }}</li>
+        }
+      </ul>
+    }
+    @if (sealError(); as error) {
+      <p class="notice notice-error" role="alert">{{ error }}</p>
+    }
+  </section>
+
+  <!-- 3. Resultaat -->
+  @if (result(); as output) {
+    <section class="card result" aria-labelledby="result-title" aria-live="polite">
+      <div class="card-head">
+        <h2 id="result-title"><span class="step done">✓</span> Versleuteld</h2>
+        <div class="result-actions">
+          @if (mode() === 'manifest') {
+            <button type="button" class="secondary" (click)="downloadResult()">Download .yaml</button>
+          }
+          <button type="button" class="primary" (click)="copyResult()">
+            {{ copied() ? 'Gekopieerd ✓' : 'Kopiëren' }}
+          </button>
+        </div>
+      </div>
+      <textarea
+        class="mono output"
+        readonly
+        spellcheck="false"
+        [rows]="mode() === 'manifest' ? 16 : 6"
+        [value]="output"
+        (focus)="$any($event.target).select()"
+      ></textarea>
+      <p class="help">
+        @if (mode() === 'value') {
+          Te gebruiken onder <code>spec.encryptedData</code> of in je Helm-values. Alleen het cluster kan
+          dit ontsleutelen.
+        } @else {
+          Commit dit bestand in Git; de Sealed Secrets-controller maakt er een gewoon Secret van.
+        }
+      </p>
+    </section>
+  }
+</main>
