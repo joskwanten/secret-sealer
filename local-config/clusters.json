@@ -8,10 +8,21 @@
       "namespacesUrl": "live-namespaces/current"
     },
     {
+      "id": "pasted",
+      "name": "Geplakte oc login",
+      "loginUrl": "pasted-login",
+      "certificateUrl": "pasted-login/cert",
+      "namespacesUrl": "pasted-login/namespaces"
+    },
+    {
       "id": "demo",
       "name": "Demo (testcertificaat)",
       "certificateUrl": "config/certs/demo.cert",
-      "namespaces": ["team-a-ont", "team-a-tst", "team-b-ont"]
+      "namespaces": [
+        "team-a-ont",
+        "team-a-tst",
+        "team-b-ont"
+      ]
     }
   ]
 }

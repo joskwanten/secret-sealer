@@ -54,6 +54,30 @@
             <span class="help">Op te halen met <code>kubeseal --fetch-cert</code>.</span>
           </label>
 
+          <div id="paste-login" class="sub-field" hidden>
+            <label class="label" for="paste-command">oc login-commando</label>
+            <textarea
+              id="paste-command"
+              class="mono"
+              rows="3"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="oc login --token=sha256~… --server=https://api.…:6443"
+            ></textarea>
+            <span class="help">
+              In de OpenShift-console: je naam rechtsboven → <em>Copy login command</em>. De token blijft alleen in
+              het geheugen van het Secret Sealer-programma op je eigen computer.
+            </span>
+            <div class="actions">
+              <button id="paste-connect" type="button" class="primary">Verbinden</button>
+            </div>
+            <p id="paste-error" class="notice notice-error" role="alert" hidden></p>
+          </div>
+
+          <p id="paste-connected" class="cert-server" hidden>
+            Verbonden met <strong class="paste-server"></strong><span class="paste-user"> als <strong></strong></span>
+            · <button type="button" class="link">verbreken</button>
+          </p>
           <p id="cert-server" class="cert-server" hidden>Opgehaald van <strong></strong></p>
           <p id="cert-info" class="cert-info" hidden>
             <span class="cert-validity"></span>

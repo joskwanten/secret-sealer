@@ -31,6 +31,7 @@ func testServer() http.Handler {
 		controllerName:      "sealed-secrets",
 		config:              []byte(`{"clusters":[]}`),
 		static:              http.FileServerFS(fstest.MapFS{"index.html": {Data: []byte("hallo")}}),
+		newClient:           newLoginClient,
 	}
 	return s.routes()
 }

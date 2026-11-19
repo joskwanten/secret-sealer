@@ -45,6 +45,8 @@ type server struct {
 	controllerName      string
 	config              []byte
 	static              http.Handler
+	logins              loginStore
+	newClient           func(insecure bool) *http.Client
 }
 
 func main() {
@@ -78,6 +80,7 @@ func main() {
 		controllerName:      envOr("SEALED_SECRETS_NAME", "sealed-secrets"),
 		config:              config,
 		static:              http.FileServerFS(files),
+		newClient:           newLoginClient,
 	}
 
 	listener, err := net.Listen("tcp", *addr)
@@ -101,6 +104,11 @@ func (s *server) routes() http.Handler {
 	})
 	mux.HandleFunc("GET /live-certs/{context}", s.live(s.certificate))
 	mux.HandleFunc("GET /live-namespaces/{context}", s.live(s.namespaces))
+	mux.HandleFunc("GET /pasted-login", s.handleLoginStatus)
+	mux.HandleFunc("POST /pasted-login", sameOrigin(s.handleLogin))
+	mux.HandleFunc("DELETE /pasted-login", sameOrigin(s.handleLogout))
+	mux.HandleFunc("GET /pasted-login/cert", s.withLogin(s.pastedCertificate))
+	mux.HandleFunc("GET /pasted-login/namespaces", s.withLogin(s.pastedNamespaces))
 	mux.Handle("GET /", s.static)
 	return localOnly(securityHeaders(mux))
 }
@@ -234,6 +242,22 @@ func localOnly(next http.Handler) http.Handler {
 			http.Error(w, "Alleen bereikbaar via localhost", http.StatusForbidden)
 		}
 	})
+}
+
+// sameOrigin only lets our own page change the login. Without it, any website you visit could
+// post its own token and server, and you'd seal your secrets with a key of theirs.
+func sameOrigin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Sec-Fetch-Site") != "same-origin" && r.Header.Get("Origin") != "http://"+r.Host {
+			http.Error(w, "Alleen vanaf de Secret Sealer-pagina zelf", http.StatusForbidden)
+			return
+		}
+		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") && r.Method == http.MethodPost {
+			http.Error(w, "Verwacht JSON", http.StatusUnsupportedMediaType)
+			return
+		}
+		next(w, r)
+	}
 }
 
 func securityHeaders(next http.Handler) http.Handler {

@@ -1,6 +1,6 @@
 // @ts-check
 import { Combobox } from './combobox.js';
-import { ClusterConfig } from './config.js';
+import { ClusterConfig, NOT_CONNECTED } from './config.js';
 import { loadCertificate } from './sealing/certificate.js';
 import { buildSealedSecretManifest } from './sealing/manifest.js';
 import { SCOPES, encryptionLabel, sealValue } from './sealing/seal.js';
@@ -59,6 +59,9 @@ const state = {
   busy: false,
   /** @type {string | null} */
   sealError: null,
+  pasteBusy: false,
+  /** @type {string | null} */
+  pasteError: null,
   copied: false,
 };
 
@@ -166,6 +169,11 @@ const el = {
   customChoice: $('custom-choice'),
   customPemField: $('custom-pem-field'),
   customPem: field('custom-pem'),
+  pasteLogin: $('paste-login'),
+  pasteCommand: field('paste-command'),
+  pasteConnect: /** @type {HTMLButtonElement} */ ($('paste-connect')),
+  pasteError: $('paste-error'),
+  pasteConnected: $('paste-connected'),
   certServer: $('cert-server'),
   certInfo: $('cert-info'),
   certError: $('cert-error'),
@@ -227,8 +235,22 @@ function render() {
   renderClusterCards(clusterId);
   el.customPemField.hidden = clusterId !== CUSTOM_CLUSTER;
 
+  // Pasted oc login (local Go server only)
+  const login = selectedCluster()?.loginUrl ? selectedCluster()?.login : undefined;
+  el.pasteLogin.hidden = login?.status !== 'disconnected';
+  el.pasteConnect.disabled = state.pasteBusy;
+  el.pasteConnect.textContent = state.pasteBusy ? 'Verbinden…' : 'Verbinden';
+  el.pasteError.hidden = !state.pasteError;
+  el.pasteError.textContent = state.pasteError ?? '';
+  el.pasteConnected.hidden = login?.status !== 'connected';
+  if (login?.status === 'connected') {
+    child(el.pasteConnected, '.paste-server').textContent = login.server;
+    child(el.pasteConnected, '.paste-user').hidden = !login.user;
+    child(el.pasteConnected, '.paste-user strong').textContent = login.user;
+  }
+
   const ready = cert?.status === 'ready' ? cert : null;
-  el.certServer.hidden = !ready?.server;
+  el.certServer.hidden = !ready?.server || login !== undefined;
   child(el.certServer, 'strong').textContent = ready?.server ?? '';
   el.certInfo.hidden = !ready;
   if (ready) {
@@ -245,8 +267,10 @@ function render() {
     /** @type {HTMLElement} */ (el.certInfo.querySelector('.cert-reload')).hidden =
       clusterId === CUSTOM_CLUSTER;
   }
-  el.certError.hidden = cert?.status !== 'error';
+  el.certError.hidden = cert?.status !== 'error' || cert.message === NOT_CONNECTED;
   child(el.certError, 'span').textContent = cert?.status === 'error' ? cert.message : '';
+  // With a lapsed pasted login, pasting a new command is the way forward, not retrying.
+  child(el.certError, 'button').hidden = login?.status === 'disconnected';
 
   // Namespace, name, scope
   const options = namespaceOptions();
@@ -317,13 +341,19 @@ function renderClusterCards(clusterId) {
       clusterCards.set(cluster.id, card);
     }
     const meta = /** @type {HTMLElement} */ (card.querySelector('.choice-meta'));
-    const status = cluster.certificate.status;
+    const loginStatus = cluster.loginUrl ? cluster.login?.status : undefined;
+    const status =
+      loginStatus === 'loading' ? 'checking'
+      : loginStatus === 'disconnected' ? 'disconnected'
+      : cluster.certificate.status;
     if (meta.dataset.status !== status) {
       meta.dataset.status = status;
       meta.innerHTML = {
         loading: 'Certificaat laden…',
         ready: '<span class="dot ok"></span> Klaar voor gebruik',
         error: '<span class="dot error"></span> Certificaat niet beschikbaar',
+        checking: 'Verbinding controleren…',
+        disconnected: 'Plak je oc login-commando',
       }[status];
     }
   }
@@ -445,6 +475,24 @@ async function onCustomPemChange(pem) {
   }
 }
 
+async function connectPasted() {
+  const command = el.pasteCommand.value.trim();
+  if (state.pasteBusy) return;
+  if (!command) {
+    update({ pasteError: 'Plak eerst het oc login-commando.' });
+    return;
+  }
+  update({ pasteBusy: true, pasteError: null });
+  try {
+    await config.connect(selectedClusterId(), command);
+    el.pasteCommand.value = ''; // the token only lives in the Go program
+  } catch (e) {
+    update({ pasteError: e instanceof Error ? e.message : 'Verbinden mislukt' });
+  } finally {
+    update({ pasteBusy: false });
+  }
+}
+
 async function seal() {
   const cert = certificateState();
   if (state.busy || problems().length > 0 || cert?.status !== 'ready') return;
@@ -512,6 +560,9 @@ for (const button of el.certInfo.querySelectorAll('button'))
 for (const button of el.certError.querySelectorAll('button'))
   button.addEventListener('click', () => config.reload(selectedClusterId()));
 
+el.pasteConnect.addEventListener('click', connectPasted);
+child(el.pasteConnected, 'button').addEventListener('click', () => config.disconnect(selectedClusterId()));
+
 el.secretName.addEventListener('input', () => update({ secretName: el.secretName.value }));
 for (const tab of el.tabs) {
   tab.addEventListener('click', () => update({ mode: /** @type {Mode} */ (tab.dataset.mode) }));
@@ -539,7 +590,14 @@ el.copy.addEventListener('click', copyResult);
 el.download.addEventListener('click', downloadResult);
 el.output.addEventListener('focus', () => el.output.select());
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) seal();
+  if (e.key !== 'Enter') return;
+  if (e.target === el.pasteCommand && !e.shiftKey) {
+    // A pasted command is one line: Enter connects.
+    e.preventDefault();
+    connectPasted();
+  } else if (e.ctrlKey || e.metaKey) {
+    seal();
+  }
 });
 
 render();

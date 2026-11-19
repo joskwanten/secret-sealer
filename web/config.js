@@ -19,6 +19,7 @@ import { SCOPES } from './sealing/seal.js';
  * @property {string} certificateUrl Public sealing certificate, relative to the app or same-origin.
  * @property {string[]} [namespaces] Fixed list of namespaces to choose from.
  * @property {string} [namespacesUrl] URL returning a JSON array of names; wins over `namespaces`.
+ * @property {string} [loginUrl] Local Go server only: lets you paste an `oc login` command.
  */
 
 /**
@@ -34,13 +35,23 @@ import { SCOPES } from './sealing/seal.js';
  */
 
 /**
+ * @typedef {{ status: 'loading' }
+ *   | { status: 'disconnected' }
+ *   | { status: 'connected', server: string, user: string }} LoginState
+ */
+
+/**
  * @typedef {ClusterDefinition & {
  *   certificate: CertificateState,
  *   namespaceList?: NamespaceListState,
+ *   login?: LoginState,
  * }} Cluster
  */
 
 const CONFIG_URL = 'config/clusters.json';
+
+/** Certificate error of a paste cluster before anything was pasted; the paste field says enough. */
+export const NOT_CONNECTED = 'Nog niet verbonden.';
 
 /**
  * Loads the cluster list, then each cluster's certificate (and live namespaces).
@@ -91,10 +102,59 @@ export class ClusterConfig {
   async reload(id) {
     const cluster = this.clusters.find((c) => c.id === id);
     if (!cluster) return;
+    if (cluster.loginUrl && !(await this.#checkLogin(cluster))) return;
     await Promise.all([
       this.#loadCertificate(cluster),
       cluster.namespacesUrl ? this.#loadNamespaces(cluster, cluster.namespacesUrl) : undefined,
     ]);
+  }
+
+  /**
+   * Sends a pasted `oc login` command to the local server; throws with a readable message.
+   * @param {string} id
+   * @param {string} command
+   */
+  async connect(id, command) {
+    const cluster = this.clusters.find((c) => c.id === id);
+    if (!cluster?.loginUrl) return;
+    const response = await send(cluster.loginUrl, 'POST', { command });
+    const login = await response.json();
+    cluster.login = { status: 'connected', server: login.server, user: login.user ?? '' };
+    this.onChange();
+    await this.reload(id);
+  }
+
+  /** @param {string} id */
+  async disconnect(id) {
+    const cluster = this.clusters.find((c) => c.id === id);
+    if (!cluster?.loginUrl) return;
+    await send(cluster.loginUrl, 'DELETE').catch(() => {});
+    await this.reload(id);
+  }
+
+  /**
+   * Updates `cluster.login`; returns whether we're connected. Without a login there's nothing to fetch.
+   * @param {Cluster} cluster
+   */
+  async #checkLogin(cluster) {
+    if (cluster.login?.status !== 'connected') {
+      cluster.login = { status: 'loading' };
+      this.onChange();
+    }
+    try {
+      const login = await (await get(/** @type {string} */ (cluster.loginUrl), '')).json();
+      cluster.login = login.connected
+        ? { status: 'connected', server: login.server, user: login.user ?? '' }
+        : { status: 'disconnected' };
+    } catch {
+      cluster.login = { status: 'disconnected' };
+    }
+    if (cluster.login.status === 'disconnected') {
+      cluster.certificate = { status: 'error', message: NOT_CONNECTED };
+      cluster.namespaceList = undefined;
+    }
+    this.onChange();
+    return cluster.login.status === 'connected';
   }
 
   /** @param {Cluster} cluster */
@@ -111,6 +171,11 @@ export class ClusterConfig {
       };
     } catch (e) {
       cluster.certificate = { status: 'error', message: errorMessage(e, 'Certificaat niet bereikbaar') };
+      // An expired token makes the server forget the login; show the paste field again.
+      if (cluster.loginUrl && e instanceof HttpError && e.status === 401) {
+        const message = cluster.certificate.message;
+        if (!(await this.#checkLogin(cluster))) cluster.certificate = { status: 'error', message };
+      }
     }
     this.onChange();
   }
@@ -142,10 +207,46 @@ export class ClusterConfig {
  * @param {string} fallback
  */
 async function get(url, fallback) {
-  const response = await fetch(url, { cache: 'no-store' });
+  return checked(await fetch(url, { cache: 'no-store' }), fallback);
+}
+
+/**
+ * @param {string} url
+ * @param {'POST' | 'DELETE'} method
+ * @param {unknown} [body]
+ */
+async function send(url, method, body) {
+  const response = await fetch(url, {
+    method,
+    cache: 'no-store',
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return checked(response, 'Verbinden mislukt');
+}
+
+class HttpError extends Error {
+  /**
+   * @param {number} status
+   * @param {string} message
+   */
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/**
+ * @param {Response} response
+ * @param {string} fallback
+ */
+async function checked(response, fallback) {
   if (response.ok) return response;
   const body = await response.text().catch(() => '');
-  throw new Error(body && body.length < 500 && !body.includes('<') ? body.trim() : fallback);
+  throw new HttpError(
+    response.status,
+    body && body.length < 500 && !body.includes('<') ? body.trim() : fallback,
+  );
 }
 
 /**

@@ -116,6 +116,26 @@ terugval).
   live-endpoints (die met jouw login draaien) dus niet via een DNS-truc aanroepen.
 - Het geheim zelf komt nooit bij dit programma: ook hier versleutelt de browser.
 
+### Of: plak je `oc login`-commando
+
+Heb je `oc` of `kubeseal` niet (of wil je naar een ander cluster zonder opnieuw in te loggen), kies dan
+**Geplakte oc login**. Plak het commando uit de OpenShift-console (je naam rechtsboven → *Copy login command*),
+bijvoorbeeld:
+
+```
+oc login --token=sha256~… --server=https://api.ont.example:6443
+```
+
+Het Go-programma praat dan zelf met de Kubernetes-API: het cert komt via de service-proxy van de controller (net
+als `kubeseal --fetch-cert`) en de namespaces uit de projects-API. `oc` en `kubeseal` zijn dan niet nodig.
+
+- De token staat alleen in het geheugen van het Go-programma: niet op schijf en niet in de browser. Herstart je
+  het programma of verloopt de token, dan plak je opnieuw. *verbreken* vergeet hem meteen.
+- Alleen de Secret Sealer-pagina zelf mag een login instellen; een andere website kan dat niet.
+- Het certificaat van de API-server moet vertrouwd worden door je OS. Is dat niet zo, voeg dan
+  `--insecure-skip-tls-verify` aan het commando toe, net als bij `oc`.
+- Dit werkt alleen lokaal, niet in de nginx-versie op OpenShift.
+
 ## Ontwikkelen
 
 Vereist Go 1.24+ en, voor de tests van de crypto, Node 22+. Er is geen `npm install` nodig.
