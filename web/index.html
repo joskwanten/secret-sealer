@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <title>Secret Sealer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <svg class="logo" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="10" width="16" height="11" rx="2.5" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+          <circle cx="12" cy="15.5" r="1.6" />
+        </svg>
+        <div>
+          <h1>Secret Sealer</h1>
+          <p>Versleutel secrets voor Sealed Secrets. Alles gebeurt in je browser; je geheim verlaat je computer niet.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <!-- 1. Bestemming -->
+      <section class="card" aria-labelledby="target-title">
+        <h2 id="target-title"><span class="step">1</span> Waar gaat het secret naartoe?</h2>
+
+        <p id="config-error" class="notice notice-error" role="alert" hidden></p>
+
+        <fieldset class="field">
+          <legend>Cluster</legend>
+          <div id="clusters" class="cluster-grid">
+            <div id="clusters-loading" class="choice placeholder">Clusters laden…</div>
+            <label id="custom-choice" class="choice">
+              <input type="radio" name="cluster" value="__custom__" />
+              <span class="choice-title">Eigen certificaat</span>
+              <span class="choice-meta">Plak een public cert</span>
+            </label>
+          </div>
+
+          <label id="custom-pem-field" class="sub-field" hidden>
+            <span class="label">Public certificaat (PEM)</span>
+            <textarea
+              id="custom-pem"
+              class="mono"
+              rows="5"
+              spellcheck="false"
+              placeholder="-----BEGIN CERTIFICATE-----&#10;…&#10;-----END CERTIFICATE-----"
+            ></textarea>
+            <span class="help">Op te halen met <code>kubeseal --fetch-cert</code>.</span>
+          </label>
+
+          <p id="cert-server" class="cert-server" hidden>Opgehaald van <strong></strong></p>
+          <p id="cert-info" class="cert-info" hidden>
+            <span class="cert-validity"></span>
+            · <span class="cert-fingerprint"></span>
+            <span class="cert-reload">· <button type="button" class="link">vernieuwen</button></span>
+          </p>
+          <p id="cert-error" class="notice notice-error" role="alert" hidden>
+            <span></span>
+            <button type="button" class="link">Opnieuw proberen</button>
+          </p>
+        </fieldset>
+
+        <div class="row">
+          <div class="field">
+            <label class="label" for="namespace-input">
+              Namespace
+              <span id="namespace-optional" class="optional" hidden>niet nodig bij cluster-breed</span>
+            </label>
+            <div id="namespace-combobox"></div>
+            <span id="namespace-error" class="help warn-inline" hidden></span>
+          </div>
+
+          <label id="secret-name-field" class="field" hidden>
+            <span class="label">Naam van het Secret</span>
+            <input
+              id="secret-name"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="bijv. database-credentials"
+            />
+          </label>
+        </div>
+
+        <fieldset class="field">
+          <legend>Scope</legend>
+          <div id="scopes" class="scope-grid"></div>
+        </fieldset>
+      </section>
+
+      <!-- 2. Invoer -->
+      <section class="card" aria-labelledby="input-title">
+        <div class="card-head">
+          <h2 id="input-title"><span class="step">2</span> Wat wil je versleutelen?</h2>
+          <div class="tabs" role="tablist">
+            <button type="button" role="tab" data-mode="value">Losse waarde</button>
+            <button type="button" role="tab" data-mode="manifest">Volledig SealedSecret</button>
+          </div>
+        </div>
+
+        <div id="value-mode">
+          <label class="field">
+            <span class="label">Waarde <span class="optional">meerdere regels mag</span></span>
+            <textarea
+              id="value"
+              class="mono secret-input"
+              rows="8"
+              spellcheck="false"
+              autocomplete="off"
+              placeholder="Plak hier het wachtwoord, token, certificaat…"
+            ></textarea>
+          </label>
+          <p id="value-hints" class="hints" hidden>
+            <span class="hint-counts"></span>
+            <span class="warn-inline hint-trailing" hidden>
+              · eindigt op een spatie of lege regel
+              <button type="button" class="link">weghalen</button>
+            </span>
+          </p>
+        </div>
+
+        <div id="manifest-mode" class="entries" hidden>
+          <div id="entries" class="entries"></div>
+          <button id="add-entry" type="button" class="secondary">+ Key toevoegen</button>
+        </div>
+
+        <div class="actions">
+          <button id="seal" type="button" class="primary">Versleutelen</button>
+          <span class="shortcut">of <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd></span>
+          <button id="clear" type="button" class="link clear">Invoer wissen</button>
+        </div>
+
+        <ul id="problems" class="problems" hidden></ul>
+        <p id="seal-error" class="notice notice-error" role="alert" hidden></p>
+      </section>
+
+      <!-- 3. Resultaat -->
+      <section id="result" class="card result" aria-labelledby="result-title" aria-live="polite" hidden>
+        <div class="card-head">
+          <h2 id="result-title"><span class="step done">✓</span> Versleuteld</h2>
+          <div class="result-actions">
+            <button id="download" type="button" class="secondary">Download .yaml</button>
+            <button id="copy" type="button" class="primary">Kopiëren</button>
+          </div>
+        </div>
+        <textarea id="output" class="mono output" readonly spellcheck="false"></textarea>
+        <p id="result-help-value" class="help">
+          Te gebruiken onder <code>spec.encryptedData</code> of in je Helm-values. Alleen het cluster kan
+          dit ontsleutelen.
+        </p>
+        <p id="result-help-manifest" class="help" hidden>
+          Commit dit bestand in Git; de Sealed Secrets-controller maakt er een gewoon Secret van.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

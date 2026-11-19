@@ -1,34 +1,36 @@
-import { readChildren, readElement, readTime } from './der';
+// @ts-check
+import { readChildren, readElement, readTime } from './der.js';
 
-export interface SealingCertificate {
-  /** RSA-OAEP/SHA-256 public key, ready for sealing. */
-  key: CryptoKey;
-  notBefore: Date;
-  notAfter: Date;
-  /** SHA-256 over the certificate, formatted like `openssl x509 -fingerprint -sha256`. */
-  fingerprint: string;
-}
+/**
+ * @typedef {object} SealingCertificate
+ * @property {CryptoKey} key RSA-OAEP/SHA-256 public key, ready for sealing.
+ * @property {Date} notBefore
+ * @property {Date} notAfter
+ * @property {string} fingerprint SHA-256 over the certificate, formatted like
+ *   `openssl x509 -fingerprint -sha256`.
+ */
 
 const SEQUENCE = 0x30;
 const EXPLICIT_VERSION = 0xa0;
 
-/** Decodes the first certificate in a PEM bundle to DER. */
-export function pemToDer(pem: string): Uint8Array<ArrayBuffer> {
-  const match = pem.match(
-    /-----BEGIN CERTIFICATE-----([\s\S]+?)-----END CERTIFICATE-----/,
-  );
+/**
+ * Decodes the first certificate in a PEM bundle to DER.
+ * @param {string} pem
+ * @returns {Uint8Array<ArrayBuffer>}
+ */
+export function pemToDer(pem) {
+  const match = pem.match(/-----BEGIN CERTIFICATE-----([\s\S]+?)-----END CERTIFICATE-----/);
   if (!match) {
     throw new Error('Geen PEM-certificaat gevonden (verwacht "-----BEGIN CERTIFICATE-----")');
   }
-  const binary = atob(match[1].replace(/\s+/g, ''));
-  const der = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    der[i] = binary.charCodeAt(i);
-  }
-  return der;
+  return Uint8Array.from(atob(match[1].replace(/\s+/g, '')), (c) => c.charCodeAt(0));
 }
 
-export async function loadCertificate(pem: string): Promise<SealingCertificate> {
+/**
+ * @param {string} pem
+ * @returns {Promise<SealingCertificate>}
+ */
+export async function loadCertificate(pem) {
   const der = pemToDer(pem);
 
   const certificate = readElement(der, 0);
@@ -46,7 +48,7 @@ export async function loadCertificate(pem: string): Promise<SealingCertificate> 
   }
   const [notBefore, notAfter] = readChildren(der, validity).map((t) => readTime(der, t));
 
-  let key: CryptoKey;
+  let key;
   try {
     key = await crypto.subtle.importKey(
       'spki',

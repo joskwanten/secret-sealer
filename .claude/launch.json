@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "secret-sealer",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
-      "port": 4200
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", ".", "-dev", "-open=false"],
+      "port": 8080
     }
   ]
 }

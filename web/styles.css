@@ -45,7 +45,6 @@
     --shadow: none;
   }
 }
-
 * {
   box-sizing: border-box;
 }
@@ -76,8 +75,7 @@ kbd {
   padding: 0 4px;
 }
 
-// --- Layout -----------------------------------------------------------------
-
+/* --- Layout ----------------------------------------------------------------- */
 .topbar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -90,16 +88,14 @@ kbd {
   display: flex;
   gap: 14px;
   align-items: center;
-
-  h1 {
-    font-size: 1.25rem;
-  }
-
-  p {
-    margin: 2px 0 0;
-    color: var(--text-muted);
-    font-size: 0.93rem;
-  }
+}
+.topbar-inner h1 {
+  font-size: 1.25rem;
+}
+.topbar-inner p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.93rem;
 }
 
 .logo {
@@ -113,11 +109,10 @@ kbd {
   stroke: var(--on-accent);
   stroke-width: 2;
   stroke-linecap: round;
-
-  circle {
-    fill: var(--on-accent);
-    stroke: none;
-  }
+}
+.logo circle {
+  fill: var(--on-accent);
+  stroke: none;
 }
 
 .layout {
@@ -136,13 +131,12 @@ kbd {
   padding: 20px;
   display: grid;
   gap: 16px;
-
-  h2 {
-    font-size: 1.05rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+}
+.card h2 {
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .card-head {
@@ -163,11 +157,10 @@ kbd {
   color: var(--accent);
   font-size: 0.82rem;
   font-weight: 700;
-
-  &.done {
-    background: var(--ok);
-    color: var(--surface);
-  }
+}
+.step.done {
+  background: var(--ok);
+  color: var(--surface);
 }
 
 .row {
@@ -176,8 +169,7 @@ kbd {
   gap: 16px;
 }
 
-// --- Fields -----------------------------------------------------------------
-
+/* --- Fields ----------------------------------------------------------------- */
 fieldset {
   border: 0;
   margin: 0;
@@ -215,7 +207,7 @@ legend,
   margin-top: 12px;
 }
 
-input[type='text'],
+input[type=text],
 textarea {
   width: 100%;
   font: inherit;
@@ -224,40 +216,36 @@ textarea {
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   padding: 9px 11px;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
-
-  &::placeholder {
-    color: var(--text-muted);
-    opacity: 0.8;
-  }
-
-  &:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--focus);
-  }
-
-  &:disabled {
-    background: var(--surface-muted);
-    color: var(--text-muted);
-    cursor: not-allowed;
-  }
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type=text]::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+input[type=text]:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+input[type=text]:disabled,
+textarea:disabled {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  cursor: not-allowed;
 }
 
 textarea {
   resize: vertical;
 }
 
-// --- Combobox ---------------------------------------------------------------
-
+/* --- Combobox --------------------------------------------------------------- */
 .combobox {
   position: relative;
-
-  input[type='text'] {
-    padding-right: 38px;
-  }
+}
+.combobox input[type=text] {
+  padding-right: 38px;
 }
 
 .combobox-toggle {
@@ -273,22 +261,20 @@ textarea {
   cursor: pointer;
   display: grid;
   place-items: center;
-
-  svg {
-    width: 12px;
-    height: 12px;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.6;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    transition: transform 0.15s;
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.5;
-  }
+}
+.combobox-toggle svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.15s;
+}
+.combobox-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .combobox.open .combobox-toggle svg {
@@ -309,29 +295,25 @@ textarea {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgb(16 24 40 / 14%);
-
-  li {
-    padding: 7px 10px;
-    border-radius: 6px;
-    cursor: pointer;
-    overflow-wrap: anywhere;
-
-    &.active {
-      background: var(--accent-soft);
-    }
-
-    &[aria-selected='true'] {
-      color: var(--accent);
-      font-weight: 600;
-    }
-  }
-
-  .combobox-empty {
-    cursor: default;
-    color: var(--text-muted);
-    font-size: 0.86rem;
-  }
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+}
+.combobox-list li {
+  padding: 7px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.combobox-list li.active {
+  background: var(--accent-soft);
+}
+.combobox-list li[aria-selected=true] {
+  color: var(--accent);
+  font-weight: 600;
+}
+.combobox-list .combobox-empty {
+  cursor: default;
+  color: var(--text-muted);
+  font-size: 0.86rem;
 }
 
 .mono {
@@ -360,8 +342,7 @@ textarea {
   color: var(--warn);
 }
 
-// --- Choice cards (clusters, scope) ------------------------------------------
-
+/* --- Choice cards (clusters, scope) ------------------------------------------ */
 .cluster-grid,
 .scope-grid {
   display: grid;
@@ -378,35 +359,28 @@ textarea {
   border-radius: 8px;
   background: var(--surface);
   cursor: pointer;
-  transition:
-    border-color 0.15s,
-    background 0.15s;
-
-  &:hover {
-    border-color: var(--accent);
-  }
-
-  &.selected {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-    box-shadow: inset 0 0 0 1px var(--accent);
-  }
-
-  &:has(input:focus-visible) {
-    box-shadow: 0 0 0 3px var(--focus);
-  }
-
-  input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  &.placeholder {
-    cursor: default;
-    color: var(--text-muted);
-    border-style: dashed;
-  }
+  transition: border-color 0.15s, background 0.15s;
+}
+.choice:hover {
+  border-color: var(--accent);
+}
+.choice.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.choice:has(input:focus-visible) {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+.choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.choice.placeholder {
+  cursor: default;
+  color: var(--text-muted);
+  border-style: dashed;
 }
 
 .choice-title {
@@ -425,81 +399,70 @@ textarea {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-
-  &.ok {
-    background: var(--ok);
-  }
-
-  &.error {
-    background: var(--error);
-  }
+}
+.dot.ok {
+  background: var(--ok);
+}
+.dot.error {
+  background: var(--error);
 }
 
 .cert-server {
   margin: 10px 0 0;
   font-size: 0.9rem;
-
-  strong {
-    font-family: var(--mono);
-    font-size: 0.86rem;
-    overflow-wrap: anywhere;
-  }
-
-  & + .cert-info {
-    margin-top: 2px;
-  }
+}
+.cert-server strong {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+.cert-server + .cert-info {
+  margin-top: 2px;
 }
 
 .cert-info {
   margin: 10px 0 0;
   font-size: 0.86rem;
   color: var(--text-muted);
-
-  &.warn {
-    color: var(--warn);
-  }
-
-  span[title] {
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    cursor: help;
-  }
+}
+.cert-info.warn {
+  color: var(--warn);
+}
+.cert-info span[title] {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  cursor: help;
 }
 
-// --- Tabs -------------------------------------------------------------------
-
+/* --- Tabs ------------------------------------------------------------------- */
 .tabs {
   display: inline-flex;
   background: var(--surface-muted);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 3px;
-
-  button {
-    font: inherit;
-    font-size: 0.88rem;
-    border: 0;
-    background: transparent;
-    color: var(--text-muted);
-    padding: 5px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-
-    &[aria-selected='true'] {
-      background: var(--surface);
-      color: var(--text);
-      font-weight: 600;
-      box-shadow: var(--shadow);
-    }
-
-    &:focus-visible {
-      outline: 2px solid var(--accent);
-    }
-  }
+}
+.tabs button {
+  font: inherit;
+  font-size: 0.88rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tabs button[aria-selected=true] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+.tabs button:focus-visible {
+  outline: 2px solid var(--accent);
 }
 
-// --- Manifest entries ---------------------------------------------------------
-
+/* --- Manifest entries --------------------------------------------------------- */
 .entries {
   display: grid;
   gap: 12px;
@@ -519,16 +482,13 @@ textarea {
 @media (max-width: 560px) {
   .entry {
     grid-template-columns: 1fr auto;
-
-    .entry-value {
-      grid-column: 1 / -1;
-      grid-row: 2;
-    }
+  }
+  .entry .entry-value {
+    grid-column: 1/-1;
+    grid-row: 2;
   }
 }
-
-// --- Buttons ----------------------------------------------------------------
-
+/* --- Buttons ---------------------------------------------------------------- */
 button {
   font: inherit;
 }
@@ -540,26 +500,24 @@ button {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px var(--focus);
-  }
+}
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--focus);
 }
 
 .primary {
   background: var(--accent);
   color: var(--on-accent);
   border: 1px solid var(--accent);
-
-  &:hover:not(:disabled) {
-    background: var(--accent-hover);
-  }
-
-  &:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
+}
+.primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+.primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .secondary {
@@ -567,10 +525,9 @@ button {
   color: var(--text);
   border: 1px solid var(--border-strong);
   justify-self: start;
-
-  &:hover {
-    border-color: var(--accent);
-  }
+}
+.secondary:hover {
+  border-color: var(--accent);
 }
 
 .icon-button {
@@ -582,16 +539,14 @@ button {
   color: var(--text-muted);
   font-size: 1.2rem;
   cursor: pointer;
-
-  &:hover:not(:disabled) {
-    color: var(--error);
-    border-color: var(--error);
-  }
-
-  &:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
+}
+.icon-button:hover:not(:disabled) {
+  color: var(--error);
+  border-color: var(--error);
+}
+.icon-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .link {
@@ -630,8 +585,7 @@ button {
   border-color: var(--ok);
 }
 
-// --- Messages -----------------------------------------------------------------
-
+/* --- Messages ----------------------------------------------------------------- */
 .problems {
   margin: -6px 0 0;
   padding-left: 18px;
@@ -649,4 +603,8 @@ button {
 .notice-error {
   background: var(--error-soft);
   color: var(--error);
+}
+
+[hidden] {
+  display: none !important;
 }

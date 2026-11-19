@@ -1,15 +1,17 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+import { loadCertificate } from '../web/sealing/certificate.js';
+import { encryptionLabel, sealValue } from '../web/sealing/seal.js';
 import {
   TEST_CERTIFICATE_FINGERPRINT,
   TEST_CERTIFICATE_NOT_AFTER,
   TEST_CERTIFICATE_NOT_BEFORE,
   TEST_CERTIFICATE_PEM,
   TEST_PRIVATE_KEY_PKCS8_PEM,
-} from '../../testing/fixtures';
-import { loadCertificate } from './certificate';
-import { encryptionLabel, sealValue } from './seal';
+} from './fixtures.js';
 
 /** Reference HybridDecrypt, mirroring what the sealed-secrets controller does. */
-async function unseal(sealed: string, label: string): Promise<string> {
+async function unseal(sealed, label) {
   const pkcs8 = TEST_PRIVATE_KEY_PKCS8_PEM.replace(/-----[^-]+-----|\s+/g, '');
   const privateKey = await crypto.subtle.importKey(
     'pkcs8',
@@ -37,28 +39,28 @@ async function unseal(sealed: string, label: string): Promise<string> {
 
 describe('encryptionLabel', () => {
   it('binds strict scope to namespace and name', () => {
-    expect(encryptionLabel('strict', 'team-a', 'db')).toBe('team-a/db');
+    assert.equal(encryptionLabel('strict', 'team-a', 'db'), 'team-a/db');
   });
 
   it('binds namespace-wide scope to the namespace only', () => {
-    expect(encryptionLabel('namespace-wide', 'team-a', 'db')).toBe('team-a');
+    assert.equal(encryptionLabel('namespace-wide', 'team-a', 'db'), 'team-a');
   });
 
   it('uses an empty label for cluster-wide scope', () => {
-    expect(encryptionLabel('cluster-wide', 'team-a', 'db')).toBe('');
+    assert.equal(encryptionLabel('cluster-wide', 'team-a', 'db'), '');
   });
 });
 
 describe('loadCertificate', () => {
   it('reads validity and fingerprint', async () => {
     const cert = await loadCertificate(TEST_CERTIFICATE_PEM);
-    expect(cert.notBefore.toISOString()).toBe(TEST_CERTIFICATE_NOT_BEFORE);
-    expect(cert.notAfter.toISOString()).toBe(TEST_CERTIFICATE_NOT_AFTER);
-    expect(cert.fingerprint).toBe(TEST_CERTIFICATE_FINGERPRINT);
+    assert.equal(cert.notBefore.toISOString(), TEST_CERTIFICATE_NOT_BEFORE);
+    assert.equal(cert.notAfter.toISOString(), TEST_CERTIFICATE_NOT_AFTER);
+    assert.equal(cert.fingerprint, TEST_CERTIFICATE_FINGERPRINT);
   });
 
   it('rejects input that is not a PEM certificate', async () => {
-    await expect(loadCertificate('hallo')).rejects.toThrow(/PEM/);
+    await assert.rejects(loadCertificate('hallo'), /PEM/);
   });
 });
 
@@ -69,7 +71,7 @@ describe('sealValue', () => {
 
     const sealed = await sealValue(key, value, 'team-a');
 
-    expect(await unseal(sealed, 'team-a')).toBe(value);
+    assert.equal(await unseal(sealed, 'team-a'), value);
   });
 
   it('cannot be unsealed with a different scope label', async () => {
@@ -77,7 +79,7 @@ describe('sealValue', () => {
 
     const sealed = await sealValue(key, 'geheim', 'team-a/db');
 
-    await expect(unseal(sealed, 'team-b/db')).rejects.toThrow();
+    await assert.rejects(unseal(sealed, 'team-b/db'));
   });
 
   it('produces a different ciphertext on every call', async () => {
@@ -85,6 +87,6 @@ describe('sealValue', () => {
 
     const [a, b] = await Promise.all([sealValue(key, 'x', ''), sealValue(key, 'x', '')]);
 
-    expect(a).not.toBe(b);
+    assert.notEqual(a, b);
   });
 });

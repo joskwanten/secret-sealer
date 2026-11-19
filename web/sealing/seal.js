@@ -1,3 +1,4 @@
+// @ts-check
 /**
  * Browser implementation of the Sealed Secrets hybrid encryption, byte-compatible
  * with `kubeseal` (github.com/bitnami-labs/sealed-secrets, pkg/crypto HybridEncrypt):
@@ -9,12 +10,19 @@
  * The output is base64 (standard encoding), exactly what `kubeseal --raw` prints.
  */
 
-export type SealScope = 'strict' | 'namespace-wide' | 'cluster-wide';
+/** @typedef {'strict' | 'namespace-wide' | 'cluster-wide'} SealScope */
 
-export const SCOPES: readonly SealScope[] = ['namespace-wide', 'strict', 'cluster-wide'];
+/** @type {readonly SealScope[]} */
+export const SCOPES = ['namespace-wide', 'strict', 'cluster-wide'];
 
-/** The OAEP label binds the ciphertext to its scope, like kubeseal's EncryptionLabel. */
-export function encryptionLabel(scope: SealScope, namespace: string, name: string): string {
+/**
+ * The OAEP label binds the ciphertext to its scope, like kubeseal's EncryptionLabel.
+ * @param {SealScope} scope
+ * @param {string} namespace
+ * @param {string} name
+ * @returns {string}
+ */
+export function encryptionLabel(scope, namespace, name) {
   switch (scope) {
     case 'strict':
       return `${namespace}/${name}`;
@@ -23,16 +31,19 @@ export function encryptionLabel(scope: SealScope, namespace: string, name: strin
     case 'cluster-wide':
       return '';
   }
+  throw new Error(`Onbekende scope: ${scope}`);
 }
 
 const SESSION_KEY_BYTES = 32;
 const GCM_NONCE_BYTES = 12;
 
-export async function sealValue(
-  publicKey: CryptoKey,
-  plaintext: string | Uint8Array<ArrayBuffer>,
-  label: string,
-): Promise<string> {
+/**
+ * @param {CryptoKey} publicKey
+ * @param {string | Uint8Array<ArrayBuffer>} plaintext
+ * @param {string} label
+ * @returns {Promise<string>}
+ */
+export async function sealValue(publicKey, plaintext, label) {
   const data = typeof plaintext === 'string' ? new TextEncoder().encode(plaintext) : plaintext;
   const sessionKey = crypto.getRandomValues(new Uint8Array(SESSION_KEY_BYTES));
 
@@ -47,11 +58,7 @@ export async function sealValue(
   // The session key is used exactly once, so a zero nonce is safe (same as kubeseal).
   const aesKey = await crypto.subtle.importKey('raw', sessionKey, 'AES-GCM', false, ['encrypt']);
   const aesCiphertext = new Uint8Array(
-    await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: new Uint8Array(GCM_NONCE_BYTES) },
-      aesKey,
-      data,
-    ),
+    await crypto.subtle.encrypt({ name: 'AES-GCM', iv: new Uint8Array(GCM_NONCE_BYTES) }, aesKey, data),
   );
   sessionKey.fill(0);
 
@@ -62,7 +69,8 @@ export async function sealValue(
   return toBase64(out);
 }
 
-function toBase64(bytes: Uint8Array): string {
+/** @param {Uint8Array} bytes */
+function toBase64(bytes) {
   let binary = '';
   const chunk = 0x8000;
   for (let i = 0; i < bytes.length; i += chunk) {

@@ -1,19 +1,23 @@
+// @ts-check
 /**
  * Minimal DER reader: just enough to pull the public key and validity period
  * out of an X.509 certificate, so we don't need a full ASN.1 library.
  */
 
-export interface DerElement {
-  tag: number;
-  /** Offset of the tag byte. */
-  start: number;
-  /** Offset of the first content byte. */
-  contentStart: number;
-  /** Offset just past the last content byte. */
-  end: number;
-}
+/**
+ * @typedef {object} DerElement
+ * @property {number} tag
+ * @property {number} start Offset of the tag byte.
+ * @property {number} contentStart Offset of the first content byte.
+ * @property {number} end Offset just past the last content byte.
+ */
 
-export function readElement(bytes: Uint8Array, offset: number): DerElement {
+/**
+ * @param {Uint8Array} bytes
+ * @param {number} offset
+ * @returns {DerElement}
+ */
+export function readElement(bytes, offset) {
   if (offset + 2 > bytes.length) {
     throw new Error('Onverwacht einde van DER-data');
   }
@@ -40,8 +44,13 @@ export function readElement(bytes: Uint8Array, offset: number): DerElement {
   return { tag, start: offset, contentStart, end };
 }
 
-export function readChildren(bytes: Uint8Array, parent: DerElement): DerElement[] {
-  const children: DerElement[] = [];
+/**
+ * @param {Uint8Array} bytes
+ * @param {DerElement} parent
+ * @returns {DerElement[]}
+ */
+export function readChildren(bytes, parent) {
+  const children = [];
   let offset = parent.contentStart;
   while (offset < parent.end) {
     const child = readElement(bytes, offset);
@@ -54,10 +63,15 @@ export function readChildren(bytes: Uint8Array, parent: DerElement): DerElement[
 const UTC_TIME = 0x17;
 const GENERALIZED_TIME = 0x18;
 
-export function readTime(bytes: Uint8Array, element: DerElement): Date {
+/**
+ * @param {Uint8Array} bytes
+ * @param {DerElement} element
+ * @returns {Date}
+ */
+export function readTime(bytes, element) {
   const text = new TextDecoder().decode(bytes.subarray(element.contentStart, element.end));
-  let match: RegExpMatchArray | null;
-  let year: number;
+  let match;
+  let year;
 
   if (element.tag === UTC_TIME) {
     match = text.match(/^(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})Z$/);

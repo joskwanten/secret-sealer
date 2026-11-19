@@ -1,5 +1,3 @@
-node_modules
-dist
-.angular
-.git
-.vscode
+*
+!web
+!nginx.conf

@@ -55,34 +55,42 @@ kubeseal --controller-namespace <ns> --controller-name <naam> --fetch-cert > ont
 Public certs zijn niet geheim en mogen gewoon in Git of een ConfigMap staan. Als de controller zijn sleutel
 roteert (standaard elke 30 dagen), blijven oude certs werken; ververs ze af en toe.
 
-> In `public/config` staat een **demo**-cluster met een testcertificaat waarvan de private key niet
+> In `web/config` staat een **demo**-cluster met een testcertificaat waarvan de private key niet
 > bewaard is. Daarmee gesealde waardes kan niemand ontsleutelen. Vervang de config voor echt gebruik.
-> De devserver (`npm start`) blokkeert `*.pem`/`*.crt`, daarom heet het democert `demo.cert`. Onder nginx
-> werkt `.pem` gewoon.
 
-## Ontwikkelen
+## Hoe zit het in elkaar?
 
-Vereist Node 24 (Angular 21).
+Er is geen framework en geen build-stap. Wat in `web/` staat, is precies wat de browser krijgt.
+
+| Map / bestand | Wat |
+| --- | --- |
+| `web/` | De pagina: `index.html`, `styles.css` en gewone ES-modules (`app.js`, `combobox.js`, `config.js`). |
+| `web/sealing/` | De crypto. Geen dependencies; WebCrypto doet het werk. |
+| `main.go` | Klein Go-programma voor lokaal gebruik (zie hieronder). Bakt `web/` in en gebruikt alleen de standaardbibliotheek. |
+| `test/` | Unit tests voor de crypto (`node --test`). |
+| `nginx.conf`, `Dockerfile` | De image voor OpenShift: alleen nginx met de bestanden uit `web/`. |
+
+De JS heeft JSDoc-types. VS Code controleert die via `jsconfig.json`, dus je houdt type-checking zonder
+TypeScript-build.
+
+## Lokaal gebruiken (één programma)
+
+`main.go` serveert de app op `http://localhost:8080` en opent je browser. Daarbij haalt het het cert live op
+via `kubeseal --fetch-cert`, met jouw eigen `oc login`. Je hebt dan geen cert-bestanden nodig. Kies in de app
+**Huidige oc-login**. De app laat zien van welk API-adres het cert komt. Log je in op een ander cluster, klik dan
+op *vernieuwen*.
 
 ```bash
-npm install
+go run .
 ```
+
+Of bouw één bestand dat je kunt delen of in je PATH zet:
 
 ```bash
-npm start          # http://localhost:4200
+GOOS=windows GOARCH=amd64 go build -o secret-sealer.exe .
+GOOS=darwin  GOARCH=arm64 go build -o secret-sealer-mac .
+go build -o secret-sealer .
 ```
-
-```bash
-npm test           # unit tests (Vitest)
-```
-
-De crypto staat in `src/app/sealing/` en heeft geen dependencies; WebCrypto doet het werk.
-
-### Certificaat automatisch ophalen (lokaal)
-
-Met `npm start` haalt de devserver het cert live op via `kubeseal --fetch-cert`, met jouw eigen
-`oc login`. Je hebt dan geen cert-bestanden nodig. Kies in de app **Huidige oc-login**. De app laat zien
-van welk API-adres het cert komt. Log je in op een ander cluster, klik dan op *vernieuwen*.
 
 Het namespace-veld is een combobox: kies uit de lijst of typ om te filteren. De lijst komt live uit
 `oc get projects`, dus precies de projecten waar jij bij kunt (daar zijn geen clusterrechten voor nodig).
@@ -93,16 +101,37 @@ Voorwaarden: `kubeseal` staat in je PATH (`scoop install kubeseal`) en je bent i
 `oc` is optioneel en wordt gebruikt voor de namespaces en om het API-adres te tonen (met `kubectl` als
 terugval).
 
+| Optie | Betekenis |
+| --- | --- |
+| `-addr` | Adres, standaard `127.0.0.1:8080`. |
+| `-config <pad>` | Eigen `clusters.json` in plaats van de ingebouwde (`local-config/clusters.json`). |
+| `-open=false` | Browser niet automatisch openen. |
+| `-dev` | Serveer `web/` van schijf, zodat een wijziging na een refresh zichtbaar is. |
+
 - De controller staat standaard op `cd-sealed-secrets/sealed-secrets`. Overschrijf dat met de
   omgevingsvariabelen `SEALED_SECRETS_NAMESPACE` en `SEALED_SECRETS_NAME`.
-- De lokale clusterlijst staat in `dev-config/clusters.json`; de productieconfig in `public/config` wordt
-  dan niet gebruikt. Een vaste kubeconfig-context voeg je toe met `"certificateUrl": "live-certs/<context>"`
+- Een vaste kubeconfig-context voeg je toe in de clusterlijst met `"certificateUrl": "live-certs/<context>"`
   (URL-encoded; contextnamen vind je met `oc config get-contexts`).
-- Dit zit in `proxy.conf.mjs` en werkt alleen met de devserver, niet in de nginx-image.
+- Het programma antwoordt alleen op verzoeken voor `localhost`/`127.0.0.1`. Een andere website kan de
+  live-endpoints (die met jouw login draaien) dus niet via een DNS-truc aanroepen.
+- Het geheim zelf komt nooit bij dit programma: ook hier versleutelt de browser.
+
+## Ontwikkelen
+
+Vereist Go 1.24+ en, voor de tests van de crypto, Node 22+. Er is geen `npm install` nodig.
+
+```bash
+go run . -dev      # http://localhost:8080, wijzigingen in web/ na een refresh zichtbaar
+```
+
+```bash
+node --test "test/*.test.js"   # crypto en manifest (of: npm test)
+go test ./...                  # de Go-server
+```
 
 ## Deployen op OpenShift
 
-De `Dockerfile` bouwt de app en serveert die met `nginx-unprivileged` op poort 8080 (draait onder een
+De `Dockerfile` heeft geen build-stap: hij zet `web/` in `nginx-unprivileged` op poort 8080 (draait onder een
 willekeurige UID). `nginx.conf` zet een strikte Content-Security-Policy (`connect-src 'self'`): de pagina
 kan nergens anders heen praten.
 
