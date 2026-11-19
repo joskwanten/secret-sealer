@@ -182,14 +182,18 @@ go test ./...                  # de Go-server
 
 ### Een release maken
 
+Zet het nieuwe versienummer in `VERSION` en push naar `main`; een tag pushen hoeft niet:
+
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+echo v1.1.0 > VERSION
+git commit -am "Release v1.1.0"
+git push
 ```
 
 De workflow `.github/workflows/release.yml` draait dan de tests, bouwt de bestanden voor Windows, macOS en Linux
-(`scripts/build-release.sh`), zet ze met `checksums.txt` op een GitHub Release en werkt het Scoop-manifest
-`bucket/secret-sealer.json` op `main` bij. Lokaal hetzelfde bouwen: `scripts/build-release.sh v1.0.0`.
+(`scripts/build-release.sh`), maakt de tag en een GitHub Release met de bestanden en `checksums.txt`, en werkt het
+Scoop-manifest `bucket/secret-sealer.json` op `main` bij. Een `v*`-tag pushen werkt ook. Lokaal hetzelfde
+bouwen: `scripts/build-release.sh v1.1.0`.
 
 ## Deployen op OpenShift
 
