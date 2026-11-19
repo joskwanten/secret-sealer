@@ -75,7 +75,38 @@ TypeScript-build.
 
 ## Lokaal gebruiken (één programma)
 
-`main.go` serveert de app op `http://localhost:8080` en opent je browser. Daarbij haalt het het cert live op
+### Installeren (zonder Go)
+
+**Windows, met Scoop** (aanrader; `scoop update` haalt nieuwe versies binnen):
+
+```powershell
+scoop bucket add secret-sealer https://github.com/joskwanten/secret-sealer
+scoop install secret-sealer
+secret-sealer
+```
+
+**Of download** het bestand voor je systeem bij de
+[laatste release](https://github.com/joskwanten/secret-sealer/releases/latest) en start het:
+
+| Systeem | Bestand |
+| --- | --- |
+| Windows | `secret-sealer-windows-amd64.exe` |
+| Mac met Apple-chip | `secret-sealer-macos-arm64` |
+| Mac met Intel | `secret-sealer-macos-amd64` |
+| Linux | `secret-sealer-linux-amd64` (of `-arm64`) |
+
+Er opent een venster met de log en je browser gaat naar de app. Sluit het venster om te stoppen.
+
+- **Windows** kan bij de eerste keer waarschuwen ("Windows heeft uw pc beveiligd"), omdat het bestand niet
+  ondertekend is. Kies *Meer info* → *Toch uitvoeren*. Via Scoop heb je daar meestal geen last van.
+- **macOS** blokkeert niet-ondertekende programma's. Eén keer vrijgeven:
+  `chmod +x secret-sealer-macos-arm64 && xattr -d com.apple.quarantine secret-sealer-macos-arm64`.
+- Controleer eventueel de download met `checksums.txt` uit dezelfde release.
+- `secret-sealer -version` laat zien welke versie je hebt.
+
+### Wat het doet
+
+Het programma serveert de app op `http://localhost:8080` en opent je browser. Daarbij haalt het het cert live op
 via `kubeseal --fetch-cert`, met jouw eigen `oc login`. Je hebt dan geen cert-bestanden nodig. Kies in de app
 **Huidige oc-login**. De app laat zien van welk API-adres het cert komt. Log je in op een ander cluster, klik dan
 op *vernieuwen*.
@@ -84,7 +115,7 @@ op *vernieuwen*.
 go run .
 ```
 
-Of bouw één bestand dat je kunt delen of in je PATH zet:
+Heb je Go wel, dan kan het ook zo (of bouw één bestand dat je kunt delen of in je PATH zet):
 
 ```bash
 GOOS=windows GOARCH=amd64 go build -o secret-sealer.exe .
@@ -148,6 +179,17 @@ go run . -dev      # http://localhost:8080, wijzigingen in web/ na een refresh z
 node --test "test/*.test.js"   # crypto en manifest (of: npm test)
 go test ./...                  # de Go-server
 ```
+
+### Een release maken
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+De workflow `.github/workflows/release.yml` draait dan de tests, bouwt de bestanden voor Windows, macOS en Linux
+(`scripts/build-release.sh`), zet ze met `checksums.txt` op een GitHub Release en werkt het Scoop-manifest
+`bucket/secret-sealer.json` op `main` bij. Lokaal hetzelfde bouwen: `scripts/build-release.sh v1.0.0`.
 
 ## Deployen op OpenShift
 

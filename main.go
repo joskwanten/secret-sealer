@@ -34,6 +34,9 @@ import (
 //go:embed web
 var webFiles embed.FS
 
+// version is set at release time: go build -ldflags "-X main.version=v1.2.3".
+var version = "dev"
+
 //go:embed local-config/clusters.json
 var localConfig []byte
 
@@ -54,7 +57,13 @@ func main() {
 	configPath := flag.String("config", "", "eigen clusters.json in plaats van de ingebouwde")
 	dev := flag.Bool("dev", false, "serveer ./web van schijf (voor ontwikkelen, geen herstart nodig)")
 	open := flag.Bool("open", true, "open de browser bij het starten")
+	showVersion := flag.Bool("version", false, "toon de versie en stop")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println("secret-sealer", version)
+		return
+	}
 
 	var files fs.FS
 	if *dev {
@@ -88,7 +97,7 @@ func main() {
 		log.Fatal(err)
 	}
 	url := "http://" + displayAddr(listener.Addr().String()) + "/"
-	log.Printf("Secret Sealer draait op %s (Ctrl+C om te stoppen)", url)
+	log.Printf("Secret Sealer %s draait op %s (Ctrl+C of dit venster sluiten om te stoppen)", version, url)
 	if *open {
 		openBrowser(url)
 	}
