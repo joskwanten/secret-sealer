@@ -236,21 +236,59 @@ func (s *server) withLogin(handler func(context.Context, *pastedLogin, http.Resp
 
 // pastedCertificate fetches the cert the way kubeseal does: through the controller's service proxy.
 func (s *server) pastedCertificate(ctx context.Context, l *pastedLogin, w http.ResponseWriter) error {
-	path := fmt.Sprintf("/api/v1/namespaces/%s/services/http:%s:/proxy/v1/cert.pem",
+	notFound := &apiError{http.StatusBadGateway, fmt.Sprintf(
+		"Geen Sealed Secrets-controller gevonden op %s/%s. Klopt SEALED_SECRETS_NAMESPACE/SEALED_SECRETS_NAME?",
+		s.controllerNamespace, s.controllerName)}
+	service := fmt.Sprintf("/api/v1/namespaces/%s/services/%s",
 		url.PathEscape(s.controllerNamespace), url.PathEscape(s.controllerName))
-	body, err := l.apiGet(ctx, path)
+
+	port, err := l.servicePortName(ctx, service)
+	if err != nil {
+		return err
+	}
+	if port == nil {
+		return notFound
+	}
+	body, err := l.apiGet(ctx, fmt.Sprintf("/api/v1/namespaces/%s/services/http:%s:%s/proxy/v1/cert.pem",
+		url.PathEscape(s.controllerNamespace), url.PathEscape(s.controllerName), url.PathEscape(*port)))
 	if err != nil {
 		return err
 	}
 	if body == nil {
-		return &apiError{http.StatusBadGateway, fmt.Sprintf(
-			"Geen Sealed Secrets-controller gevonden op %s/%s. Klopt SEALED_SECRETS_NAMESPACE/SEALED_SECRETS_NAME?",
-			s.controllerNamespace, s.controllerName)}
+		return notFound
 	}
 	w.Header().Set("Content-Type", "application/x-pem-file")
 	w.Header().Set("X-Cluster-Server", l.server)
 	_, err = w.Write(body)
 	return err
+}
+
+// servicePortName returns the name of the service's first port, which the service proxy needs
+// once that port is named (the Helm chart calls it "http"). kubeseal does the same. nil means
+// the service doesn't exist. Without the right to read services we try an unnamed port.
+func (l *pastedLogin) servicePortName(ctx context.Context, servicePath string) (*string, error) {
+	body, err := l.apiGet(ctx, servicePath)
+	var apiErr *apiError
+	if errors.As(err, &apiErr) && apiErr.status == http.StatusForbidden {
+		name := ""
+		return &name, nil
+	}
+	if err != nil || body == nil {
+		return nil, err
+	}
+	var service struct {
+		Spec struct {
+			Ports []struct{ Name string } `json:"ports"`
+		} `json:"spec"`
+	}
+	if err := json.Unmarshal(body, &service); err != nil {
+		return nil, &apiError{http.StatusBadGateway, "Onverwacht antwoord van het cluster bij het ophalen van de controller-service"}
+	}
+	name := ""
+	if len(service.Spec.Ports) > 0 {
+		name = service.Spec.Ports[0].Name
+	}
+	return &name, nil
 }
 
 // pastedNamespaces lists OpenShift projects (only what you can access), or plain namespaces elsewhere.

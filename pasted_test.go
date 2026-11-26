@@ -41,7 +41,11 @@ func fakeAPI(t *testing.T, token *atomic.Value) *httptest.Server {
 	mux.HandleFunc("GET /apis/user.openshift.io/v1/users/~", func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, `{"metadata":{"name":"jos"}}`)
 	})
-	mux.HandleFunc("GET /api/v1/namespaces/cd-sealed-secrets/services/http:sealed-secrets:/proxy/v1/cert.pem",
+	// Like the Helm chart: a named port, which the proxy path has to mention.
+	mux.HandleFunc("GET /api/v1/namespaces/cd-sealed-secrets/services/sealed-secrets", func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"spec":{"ports":[{"name":"http","port":8080}]}}`)
+	})
+	mux.HandleFunc("GET /api/v1/namespaces/cd-sealed-secrets/services/http:sealed-secrets:http/proxy/v1/cert.pem",
 		func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "-----BEGIN CERTIFICATE-----") })
 	mux.HandleFunc("GET /apis/project.openshift.io/v1/projects", func(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, `{"items":[{"metadata":{"name":"team-b"}},{"metadata":{"name":"team-a"}}]}`)
