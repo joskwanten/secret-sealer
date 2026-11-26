@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -159,5 +160,39 @@ func TestLogout(t *testing.T) {
 	}
 	if _, body := call(t, h, "GET", "/pasted-login", "", false); body != `{"connected":false}` {
 		t.Fatalf("status: %s", body)
+	}
+}
+
+// On a shared cluster the project list easily passes 1 MiB; it must not get cut off.
+func TestPastedNamespacesLargeList(t *testing.T) {
+	padding := strings.Repeat("x", 1500) // annotations, managedFields, …
+	var list strings.Builder
+	list.WriteString(`{"items":[`)
+	for i := range 2000 {
+		if i > 0 {
+			list.WriteString(",")
+		}
+		fmt.Fprintf(&list, `{"metadata":{"name":"p%04d","annotations":{"a":"%s"}}}`, i, padding)
+	}
+	list.WriteString(`]}`)
+
+	api := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/apis/user.openshift.io/v1/users/~":
+			io.WriteString(w, `{"metadata":{"name":"jos"}}`)
+		case "/apis/project.openshift.io/v1/projects":
+			io.WriteString(w, list.String())
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(api.Close)
+	h := testServer()
+	call(t, h, "POST", "/pasted-login", loginBody("oc login --token=sha256~x --server="+api.URL+" --insecure-skip-tls-verify"), true)
+
+	code, body := call(t, h, "GET", "/pasted-login/namespaces", "", false)
+	var names []string
+	if code != 200 || json.Unmarshal([]byte(body), &names) != nil || len(names) != 2000 || names[0] != "p0000" {
+		t.Fatalf("namespaces: %d, %d namen, %.200s", code, len(names), body)
 	}
 }

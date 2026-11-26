@@ -131,8 +131,19 @@ func (e *apiError) Error() string { return e.message }
 var errTokenRejected = &apiError{http.StatusUnauthorized,
 	"Het cluster accepteert de token niet (verlopen of ongeldig). Plak een nieuw oc login-commando."}
 
+// Response size limits. Project lists get big on shared clusters: every project carries its
+// annotations and managedFields, so a few hundred of them easily pass 1 MiB.
+const (
+	maxResponse     = 1 << 20
+	maxListResponse = 32 << 20
+)
+
 // apiGet does an authenticated GET against the cluster. 404 is returned as (nil, nil).
 func (l *pastedLogin) apiGet(ctx context.Context, path string) ([]byte, error) {
+	return l.apiGetMax(ctx, path, maxResponse)
+}
+
+func (l *pastedLogin) apiGetMax(ctx context.Context, path string, maxBytes int64) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, l.server+path, nil)
 	if err != nil {
 		return nil, err
@@ -149,9 +160,12 @@ func (l *pastedLogin) apiGet(ctx context.Context, path string) ([]byte, error) {
 		return nil, &apiError{http.StatusBadGateway, "Kan " + l.server + " niet bereiken: " + rootCause(err)}
 	}
 	defer res.Body.Close()
-	body, err := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	body, err := io.ReadAll(io.LimitReader(res.Body, maxBytes+1))
 	if err != nil {
-		return nil, err
+		return nil, &apiError{http.StatusBadGateway, "Antwoord van " + path + " afgebroken: " + rootCause(err)}
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, &apiError{http.StatusBadGateway, fmt.Sprintf("Antwoord van %s is groter dan %d MiB", path, maxBytes>>20)}
 	}
 	switch {
 	case res.StatusCode == http.StatusUnauthorized:
@@ -293,9 +307,9 @@ func (l *pastedLogin) servicePortName(ctx context.Context, servicePath string) (
 
 // pastedNamespaces lists OpenShift projects (only what you can access), or plain namespaces elsewhere.
 func (s *server) pastedNamespaces(ctx context.Context, l *pastedLogin, w http.ResponseWriter) error {
-	body, err := l.apiGet(ctx, "/apis/project.openshift.io/v1/projects")
+	body, err := l.apiGetMax(ctx, "/apis/project.openshift.io/v1/projects", maxListResponse)
 	if err == nil && body == nil {
-		body, err = l.apiGet(ctx, "/api/v1/namespaces")
+		body, err = l.apiGetMax(ctx, "/api/v1/namespaces", maxListResponse)
 	}
 	if err != nil {
 		return err
@@ -306,7 +320,7 @@ func (s *server) pastedNamespaces(ctx context.Context, l *pastedLogin, w http.Re
 		} `json:"items"`
 	}
 	if err := json.Unmarshal(body, &list); err != nil {
-		return &apiError{http.StatusBadGateway, "Onverwacht antwoord van het cluster bij het ophalen van namespaces"}
+		return &apiError{http.StatusBadGateway, "Onverwacht antwoord van het cluster bij het ophalen van namespaces: " + err.Error()}
 	}
 	names := make([]string, 0, len(list.Items))
 	for _, item := range list.Items {
