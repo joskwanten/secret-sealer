@@ -146,3 +146,19 @@ func TestListenFallsBackWhenDefaultPortIsTaken(t *testing.T) {
 		t.Fatalf("verwachtte een andere poort dan %s", addr)
 	}
 }
+
+// kubeseal puts the cause first and a generic --controller-name hint after it; show the cause.
+func TestKubesealServiceErrorShowsCause(t *testing.T) {
+	hint := `Please, use the flag --controller-name and --controller-namespace to set up the name and namespace of the sealed secrets controller`
+	for cause, want := range map[string]string{
+		`Unauthorized`:                        "oc-login is verlopen",
+		`services "sealed-secrets" not found`: "Geen Sealed Secrets-controller gevonden op cd-sealed-secrets/sealed-secrets",
+		`services "sealed-secrets" is forbidden: User "jos" cannot get resource "services"`: `User "jos" cannot get resource "services"`,
+	} {
+		fakeCLI(t, "kubeseal", `printf 'error: cannot get sealed secret service: %s.\n%s\n' '`+cause+`' '`+hint+`' >&2; exit 1`)
+		res, body := get(t, testServer(), "localhost", "/live-certs/current")
+		if res.StatusCode != http.StatusBadGateway || !strings.Contains(body, want) || strings.Contains(body, "Please") {
+			t.Errorf("%s: %d %s", cause, res.StatusCode, body)
+		}
+	}
+}

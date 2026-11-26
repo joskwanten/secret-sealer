@@ -85,8 +85,8 @@ func main() {
 	}
 
 	s := &server{
-		controllerNamespace: envOr("SEALED_SECRETS_NAMESPACE", "cd-sealed-secrets"),
-		controllerName:      envOr("SEALED_SECRETS_NAME", "sealed-secrets"),
+		controllerNamespace: controllerNamespace(),
+		controllerName:      controllerName(),
 		config:              config,
 		static:              http.FileServerFS(files),
 		newClient:           newLoginClient,
@@ -243,9 +243,12 @@ func run(ctx context.Context, timeout time.Duration, name string, args ...string
 	if errors.Is(err, exec.ErrNotFound) {
 		return "", notFoundError{name}
 	}
-	detail := lastLine(stderr.String())
+	detail := cliDetail(stderr.String())
 	if detail == "" {
 		detail = err.Error()
+	}
+	if cause, ok := strings.CutPrefix(detail, "cannot get sealed secret service: "); ok {
+		return "", errors.New(serviceLookupMessage(strings.TrimSuffix(cause, ".")))
 	}
 	return "", fmt.Errorf("Fout bij %s: %s. Ben je ingelogd met oc login?", name, strings.TrimSuffix(detail, "."))
 }
@@ -301,10 +304,38 @@ func securityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-func lastLine(s string) string {
-	lines := strings.Split(strings.TrimSpace(s), "\n")
-	return strings.TrimSpace(lines[len(lines)-1])
+// cliDetail is the line of a CLI's stderr that says what went wrong. kubeseal follows its error
+// with a generic hint about --controller-name; the cause is in the line before that.
+func cliDetail(stderr string) string {
+	var lines []string
+	for _, line := range strings.Split(stderr, "\n") {
+		if line = strings.TrimSpace(line); line != "" && !strings.HasPrefix(line, "Please, use the flag") {
+			lines = append(lines, line)
+		}
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.TrimPrefix(lines[len(lines)-1], "error: ")
 }
+
+// serviceLookupMessage explains why kubeseal couldn't read the controller's service.
+func serviceLookupMessage(cause string) string {
+	service := controllerNamespace() + "/" + controllerName()
+	switch {
+	case strings.Contains(cause, "Unauthorized"):
+		return "Je oc-login is verlopen of ongeldig. Log opnieuw in met oc login en klik op vernieuwen."
+	case strings.Contains(cause, "not found"):
+		return "Geen Sealed Secrets-controller gevonden op " + service + " in het cluster waar je nu op ingelogd bent. " +
+			"Zit je op het goede cluster? Anders: klopt SEALED_SECRETS_NAMESPACE/SEALED_SECRETS_NAME?"
+	case strings.Contains(cause, "forbidden"):
+		return "Je mag de service " + service + " niet lezen, en kubeseal heeft die nodig: " + cause
+	}
+	return "kubeseal kan de controller-service " + service + " niet lezen: " + cause
+}
+
+func controllerNamespace() string { return envOr("SEALED_SECRETS_NAMESPACE", "cd-sealed-secrets") }
+func controllerName() string      { return envOr("SEALED_SECRETS_NAME", "sealed-secrets") }
 
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
