@@ -280,7 +280,11 @@ function render() {
     options: options ?? [],
     loading: list?.status === 'loading',
     disabled: !needsNamespace(),
-    placeholder: options ? 'Kies of typ een namespace' : 'bijv. team-a-ont',
+    placeholder: !needsNamespace()
+      ? 'Kies scope Namespace of Strikt om een namespace te kiezen'
+      : options
+        ? 'Kies of typ een namespace'
+        : 'bijv. team-a-ont',
   });
   el.namespaceError.hidden = list?.status !== 'error';
   el.namespaceError.textContent =
