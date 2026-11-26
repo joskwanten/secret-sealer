@@ -247,6 +247,9 @@ func run(ctx context.Context, timeout time.Duration, name string, args ...string
 	if detail == "" {
 		detail = err.Error()
 	}
+	if strings.Contains(detail, "You must be logged in to the server") {
+		return "", errors.New(loginExpired)
+	}
 	if cause, ok := strings.CutPrefix(detail, "cannot get sealed secret service: "); ok {
 		return "", errors.New(serviceLookupMessage(strings.TrimSuffix(cause, ".")))
 	}
@@ -319,12 +322,14 @@ func cliDetail(stderr string) string {
 	return strings.TrimPrefix(lines[len(lines)-1], "error: ")
 }
 
+const loginExpired = "Je oc-login is verlopen of ongeldig. Log opnieuw in met oc login en klik op vernieuwen."
+
 // serviceLookupMessage explains why kubeseal couldn't read the controller's service.
 func serviceLookupMessage(cause string) string {
 	service := controllerNamespace() + "/" + controllerName()
 	switch {
 	case strings.Contains(cause, "Unauthorized"):
-		return "Je oc-login is verlopen of ongeldig. Log opnieuw in met oc login en klik op vernieuwen."
+		return loginExpired
 	case strings.Contains(cause, "not found"):
 		return "Geen Sealed Secrets-controller gevonden op " + service + " in het cluster waar je nu op ingelogd bent. " +
 			"Zit je op het goede cluster? Anders: klopt SEALED_SECRETS_NAMESPACE/SEALED_SECRETS_NAME?"

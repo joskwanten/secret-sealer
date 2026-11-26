@@ -120,7 +120,7 @@ func TestOcErrorWinsOverMissingKubectl(t *testing.T) {
 
 	_, body := get(t, testServer(), "localhost", "/live-namespaces/current")
 
-	if !strings.Contains(body, "Unauthorized") {
+	if !strings.Contains(body, "oc-login is verlopen") {
 		t.Fatalf("body = %q", body)
 	}
 }
@@ -160,5 +160,16 @@ func TestKubesealServiceErrorShowsCause(t *testing.T) {
 		if res.StatusCode != http.StatusBadGateway || !strings.Contains(body, want) || strings.Contains(body, "Please") {
 			t.Errorf("%s: %d %s", cause, res.StatusCode, body)
 		}
+	}
+}
+
+func TestExpiredOcLoginIsExplained(t *testing.T) {
+	fakeCLI(t, "oc", `echo 'error: You must be logged in to the server (the server has asked for the client to provide credentials)' >&2; exit 1`)
+	fakeCLI(t, "kubectl", `echo 'error: You must be logged in to the server (Unauthorized)' >&2; exit 1`)
+
+	res, body := get(t, testServer(), "localhost", "/live-namespaces/current")
+
+	if res.StatusCode != http.StatusBadGateway || !strings.Contains(body, "oc-login is verlopen") {
+		t.Fatalf("%d %s", res.StatusCode, body)
 	}
 }
