@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -121,5 +122,27 @@ func TestOcErrorWinsOverMissingKubectl(t *testing.T) {
 
 	if !strings.Contains(body, "Unauthorized") {
 		t.Fatalf("body = %q", body)
+	}
+}
+
+func TestListenFallsBackWhenDefaultPortIsTaken(t *testing.T) {
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer taken.Close()
+	addr := taken.Addr().String()
+
+	if l, err := listen(addr, true); err == nil {
+		l.Close()
+		t.Fatal("een zelf opgegeven bezette poort moet een fout geven")
+	}
+	l, err := listen(addr, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	if l.Addr().String() == addr {
+		t.Fatalf("verwachtte een andere poort dan %s", addr)
 	}
 }

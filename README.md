@@ -106,7 +106,7 @@ Er opent een venster met de log en je browser gaat naar de app. Sluit het venste
 
 ### Wat het doet
 
-Het programma serveert de app op `http://localhost:8080` en opent je browser. Daarbij haalt het het cert live op
+Het programma serveert de app op `http://localhost:7341` (is die poort bezet, dan een vrije poort) en opent je browser. Daarbij haalt het het cert live op
 via `kubeseal --fetch-cert`, met jouw eigen `oc login`. Je hebt dan geen cert-bestanden nodig. Kies in de app
 **Huidige oc-login**. De app laat zien van welk API-adres het cert komt. Log je in op een ander cluster, klik dan
 op *vernieuwen*.
@@ -134,7 +134,7 @@ terugval).
 
 | Optie | Betekenis |
 | --- | --- |
-| `-addr` | Adres, standaard `127.0.0.1:8080`. |
+| `-addr` | Adres, standaard `127.0.0.1:7341`. Een poort die je zelf opgeeft wordt precies zo gebruikt; is hij bezet, dan stopt het programma. |
 | `-config <pad>` | Eigen `clusters.json` in plaats van de ingebouwde (`local-config/clusters.json`). |
 | `-open=false` | Browser niet automatisch openen. |
 | `-dev` | Serveer `web/` van schijf, zodat een wijziging na een refresh zichtbaar is. |
@@ -172,7 +172,7 @@ als `kubeseal --fetch-cert`) en de namespaces uit de projects-API. `oc` en `kube
 Vereist Go 1.24+ en, voor de tests van de crypto, Node 22+. Er is geen `npm install` nodig.
 
 ```bash
-go run . -dev      # http://localhost:8080, wijzigingen in web/ na een refresh zichtbaar
+go run . -dev      # http://localhost:7341, wijzigingen in web/ na een refresh zichtbaar
 ```
 
 ```bash

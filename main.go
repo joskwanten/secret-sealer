@@ -53,7 +53,7 @@ type server struct {
 }
 
 func main() {
-	addr := flag.String("addr", "127.0.0.1:8080", "adres om op te luisteren (blijf op localhost)")
+	addr := flag.String("addr", defaultAddr, "adres om op te luisteren (blijf op localhost)")
 	configPath := flag.String("config", "", "eigen clusters.json in plaats van de ingebouwde")
 	dev := flag.Bool("dev", false, "serveer ./web van schijf (voor ontwikkelen, geen herstart nodig)")
 	open := flag.Bool("open", true, "open de browser bij het starten")
@@ -92,7 +92,7 @@ func main() {
 		newClient:           newLoginClient,
 	}
 
-	listener, err := net.Listen("tcp", *addr)
+	listener, err := listen(*addr, flagSet("addr"))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -102,6 +102,27 @@ func main() {
 		openBrowser(url)
 	}
 	log.Fatal(http.Serve(listener, s.routes()))
+}
+
+// defaultAddr is an uncommon port, so it doesn't clash with the usual local services on 8080.
+const defaultAddr = "127.0.0.1:7341"
+
+// listen opens addr. When the default port is taken we pick any free port instead: the browser
+// opens on whatever we got. A port given with -addr is used as is, or not at all.
+func listen(addr string, explicit bool) (net.Listener, error) {
+	listener, err := net.Listen("tcp", addr)
+	if err == nil || explicit {
+		return listener, err
+	}
+	log.Printf("Poort %s is bezet, ik kies een vrije poort", addr)
+	host, _, _ := net.SplitHostPort(addr)
+	return net.Listen("tcp", net.JoinHostPort(host, "0"))
+}
+
+func flagSet(name string) bool {
+	set := false
+	flag.Visit(func(f *flag.Flag) { set = set || f.Name == name })
+	return set
 }
 
 func (s *server) routes() http.Handler {
